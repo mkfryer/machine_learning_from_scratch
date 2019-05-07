@@ -53,7 +53,7 @@ def test():
     d = [x[0] for x in data]
     y = [x[1] for x in data]
     d2 = np.linspace(-2, 2, 8)
-    y2 = [(P.weights[2] - x*P.weights[0])/P.weights[1] for x in d2]
+    y2 = [(-P.weights[2] - x*P.weights[0])/P.weights[1] for x in d2]
     print(P.weights)
     plt.scatter(d, y)
     plt.plot(d2, y2)
