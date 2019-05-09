@@ -15,13 +15,22 @@ class Perceptron:
         #by adding bias as node to simplify learning
         self.weights = np.zeros(input_node_count + 1)
         self.bias = bias
-        # self.weights[-1] = -bias
-        # print(self.weights)
 
-    def predict(self, x):
+
+    def adapt_input(self, x):
+        x = np.array(x)
         #account threshold function by appending -1 to input
         if len(x) != len(self.weights):
             x = np.hstack([x, [self.bias]])
+        return x
+
+
+    def predict(self, x):
+        """ 
+        t (float): target output
+        x (list): input vector
+        """
+        x = self.adapt_input(x)
         #input for threshold function
         net = x @ self.weights
         #gets output of implicit threshold function
@@ -30,36 +39,72 @@ class Perceptron:
         return output
     
     def learn(self, x, t):
-        """ """
+        """ 
+        t (float): target output
+        x (list): input vector
+        """
         #account threshold function by appending -1 to input
-        x = np.hstack([x, [self.bias]])
+        x = self.adapt_input(x)
         output = self.predict(x)
 
         #if perceptron did not evaluate correctly, update weights
         if output != t:
             """ """
             delta_weights = self.learning_rate * (t - output) * x
-            # print("pattern", x, "delta weight", delta_weights)
             self.weights += delta_weights
 
+    def train(self, data, epochs):
+        for _ in range(epochs):
+            for x in data:
+                self.learn(x[:-1], float(x[-1]))
         
-def test():
-    data, meta = arff.loadarff("linearlySeperable.arff")  
-    P = Perceptron(.1, 2)
-    for x1, x2, t in data:
-        x = np.array([x1, x2])
-        P.learn(x, int(t))
 
-    d = [x[0] for x in data]
-    y = [x[1] for x in data]
-    d2 = np.linspace(-2, 2, 8)
+
+
+def test():
+    # data, meta = arff.loadarff("linearlySeperable.arff")
+    # data=data.tolist()
+    # P = Perceptron(.1, 2)
+    # P.train(data, 10)
+    # d2 = np.linspace(-.2, .2, 2)
+    # y2 = [(-P.weights[2] - x*P.weights[0])/P.weights[1] for x in d2]
+    # data = np.array(data, dtype=np.float)
+
+    # plt.scatter(data[4:, 0], data[4:, 1])
+    # plt.scatter(data[:4, 0], data[:4, 1])
+    # plt.plot(d2, y2)
+    # plt.grid(True)
+    # plt.title("Linearly Seperable")
+    # plt.show()
+
+
+    data, meta = arff.loadarff("linearlyUnseperable.arff")
+    data=data.tolist()
+    P = Perceptron(.1, 2)
+    P.train(data, 10)
+    d2 = np.linspace(-.2, .2, 2)
     y2 = [(-P.weights[2] - x*P.weights[0])/P.weights[1] for x in d2]
-    print(P.weights)
-    plt.scatter(d, y)
+    data = np.array(data, dtype=np.float)
+
+    plt.scatter(data[4:, 0], data[4:, 1])
+    plt.scatter(data[:4, 0], data[:4, 1])
     plt.plot(d2, y2)
+    plt.grid(True)
+    plt.title("Linearly Unseperable")
     plt.show()
 
-    P = Perceptron(.5, 2, 100)
+    # dataset, meta = arff.loadarff("iris_training.arff")  
+    # dataset = dataset.tolist()
+    # P = Perceptron(.1, 4)
+    # P.train(dataset, 1)
+    # print(dataset)
+    # success = 0
+    # total = len(dataset[0,:])
+    # for x in dataset:
+    #     if P.predict(x[:-1]) == x[-1]:
+    #         success+=1
+    # print(success/total)
+    # P = Perceptron(.5, 2, 100)
     # x1 = np.array([.8, .3])
     # x2 = np.array([.4, .1])
     # t = np.array([1, 0])
