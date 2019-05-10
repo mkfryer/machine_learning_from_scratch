@@ -55,25 +55,30 @@ class Perceptron:
             delta_weights = self.learning_rate * (t - output) * x
             self.weights += delta_weights
 
-    def train(self, data, tol):
+    def train(self, tr_data, te_data, tol=1.23E-7, max_epocs = 15):
         epocs = 0
-        err_1 = 0
-        err_2 = np.inf
+        prev_err = 0
+        next_err = 0
 
-        while epocs < 20:
-            for x in data:
-                self.learn(x[:-1], float(x[-1]))
+        while True:
             epocs += 1
-            err_2 = self.test(data)
-            if np.norm(err_1 - err_2) <= tol:
-                
+            prev_err = next_err
+            for x in tr_data:
+                self.learn(x[:-1], float(x[-1]))
+            next_err = self.test(te_data)
+            if la.norm(next_err - prev_err) <= tol or epocs >= max_epocs:
+                break
+
+        accuracy = 1 - next_err
+        return accuracy, epocs
 
     def test(self, data):
         success = 0
         for x in data:
             if self.predict(x[:-1]) == x[-1]:
                 success += 1
-        return success/len(data[:,0])
+        err = 1 - success/len(data[:,0])
+        return err
 
 
 def part5():
@@ -93,10 +98,8 @@ def part5():
             else:
                 dataset[i][j] = 0
 
-    n_epics = 7
     n_splits = 5
-    test_set_accuracy = np.zeros((n_splits, n_epics))
-    train_set_accuracy = np.zeros((n_splits, n_epics))
+    accuracy_m = np.zeros((n_splits + 1, 3))
 
     for i in range(n_splits):
         random.shuffle(dataset)
@@ -105,27 +108,25 @@ def part5():
         te_set = c_set[t:, :]
         P = Perceptron(.1, m-1)
         
-        for j in range(n_epics):
-            P.train(tr_set, 1)
-            test_set_accuracy[i, j] = P.test(te_set)
-            train_set_accuracy[i, j] = P.test(tr_set)
-    
+        te_accuracy, epochs = P.train(tr_set, te_set)
+        tr_accuracy = 1 - P.test(tr_set)
+        accuracy_m[i] = np.array([te_accuracy, te_accuracy, epochs])
 
+    accuracy_m[n_splits] = np.mean(accuracy_m, axis=0)
 
     fig, axs = plt.subplots(2,1)
-    collabel = ["split: " + str(x) for x in range(1, n_splits+1)]
-    rowlabel = [str(x) + " epocs" for x in range(1, n_epics+1)]
+    collabel = ["Test Set Accuracy", "Training Set Accuracy", "Epochs"]
+    rowlabel = ["split:" + str(x)  for x in range(1, n_splits + 2)]
+    rowlabel[-1] = "Avg:"
     axs[0].axis('tight')
     axs[0].axis('off')
     the_table = axs[0].table(
-            cellText=test_set_accuracy.T,
+            cellText=np.round(accuracy_m, decimals=5),
             colLabels=collabel,
             rowLabels=rowlabel,
             loc='center'
         )
     fig.suptitle('Accuracy', fontsize=16)
-
-    # inacs = np.mean(test_set_accuracy, axis=0)
 
     # plt.xlabel("Error")
     # plt.plot(range(n_epics), inacs)
