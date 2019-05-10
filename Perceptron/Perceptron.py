@@ -3,6 +3,7 @@ from io import StringIO
 import numpy as np
 import matplotlib.pyplot as plt
 import random
+from numpy import linalg as la
 
 class Perceptron:
     """Basic perceptron"""
@@ -54,10 +55,18 @@ class Perceptron:
             delta_weights = self.learning_rate * (t - output) * x
             self.weights += delta_weights
 
-    def train(self, data, epochs = 10):
-        for _ in range(epochs):
+    def train(self, data, tol):
+        epocs = 0
+        err_1 = 0
+        err_2 = np.inf
+
+        while epocs < 20:
             for x in data:
                 self.learn(x[:-1], float(x[-1]))
+            epocs += 1
+            err_2 = self.test(data)
+            if np.norm(err_1 - err_2) <= tol:
+                
 
     def test(self, data):
         success = 0
@@ -84,26 +93,44 @@ def part5():
             else:
                 dataset[i][j] = 0
 
-    accuracy_m = np.zeros((5, 15))
+    n_epics = 7
+    n_splits = 5
+    test_set_accuracy = np.zeros((n_splits, n_epics))
+    train_set_accuracy = np.zeros((n_splits, n_epics))
 
-    for i in range(5):
+    for i in range(n_splits):
         random.shuffle(dataset)
         c_set = np.array(dataset, dtype=int)
         tr_set = c_set[:t, :]
         te_set = c_set[t:, :]
         P = Perceptron(.1, m-1)
-        P.train(tr_set, 1)
-
-        for j in range(15):
-            accuracy_m[i, j] = 1 - P.test(tr_set)
-            print(accuracy_m)
-            # print(P.test(tr_set))
+        
+        for j in range(n_epics):
+            P.train(tr_set, 1)
+            test_set_accuracy[i, j] = P.test(te_set)
+            train_set_accuracy[i, j] = P.test(tr_set)
     
-    print(accuracy_m[0,:])
-    inacs = np.mean(accuracy_m, axis=0)
-    # print(inacs)
-    plt.plot(range(15), inacs)
-    # plt.show()
+
+
+    fig, axs = plt.subplots(2,1)
+    collabel = ["split: " + str(x) for x in range(1, n_splits+1)]
+    rowlabel = [str(x) + " epocs" for x in range(1, n_epics+1)]
+    axs[0].axis('tight')
+    axs[0].axis('off')
+    the_table = axs[0].table(
+            cellText=test_set_accuracy.T,
+            colLabels=collabel,
+            rowLabels=rowlabel,
+            loc='center'
+        )
+    fig.suptitle('Accuracy', fontsize=16)
+
+    # inacs = np.mean(test_set_accuracy, axis=0)
+
+    # plt.xlabel("Error")
+    # plt.plot(range(n_epics), inacs)
+    plt.title("Accuracy")
+    plt.show()
 
     # P.test(tr_set)
     # print(P.test(te_set))
