@@ -38,7 +38,7 @@ class Perceptron:
         #gets output of implicit threshold function
         output = 1 if net > 0 else 0
 
-        return output
+        return output, net
     
     def learn(self, x, t):
         """ 
@@ -47,7 +47,7 @@ class Perceptron:
         """
         #account threshold function by appending -1 to input
         x = self.adapt_input(x)
-        output = self.predict(x)
+        output, net = self.predict(x)
 
         #if perceptron did not evaluate correctly, update weights
         if output != t:
@@ -75,7 +75,8 @@ class Perceptron:
     def test(self, data):
         success = 0
         for x in data:
-            if self.predict(x[:-1]) == x[-1]:
+            prediction, net = self.predict(x[:-1])
+            if prediction == x[-1]:
                 success += 1
         err = 1 - success/len(data[:,0])
         return err
@@ -99,7 +100,7 @@ def part5():
                 dataset[i][j] = 0
 
     n_splits = 5
-    accuracy_m = np.zeros((n_splits + 1, 3))
+    accuracy_m = np.zeros((n_splits + 1, 4))
 
     for i in range(n_splits):
         random.shuffle(dataset)
@@ -110,33 +111,52 @@ def part5():
         
         te_accuracy, epochs = P.train(tr_set, te_set)
         tr_accuracy = 1 - P.test(tr_set)
-        accuracy_m[i] = np.array([te_accuracy, te_accuracy, epochs])
-
+        accuracy_m[i] = np.array([te_accuracy, tr_accuracy, (te_accuracy+tr_accuracy)/2, epochs])
+        print(P.weights)
     accuracy_m[n_splits] = np.mean(accuracy_m, axis=0)
 
     fig, axs = plt.subplots(2,1)
-    collabel = ["Test Set Accuracy", "Training Set Accuracy", "Epochs"]
+    collabel = ["Test Set Accuracy", "Training Set Accuracy","Average Accuracy", "Epochs"]
     rowlabel = ["split:" + str(x)  for x in range(1, n_splits + 2)]
     rowlabel[-1] = "Avg:"
     axs[0].axis('tight')
     axs[0].axis('off')
-    the_table = axs[0].table(
+    axs[0].table(
             cellText=np.round(accuracy_m, decimals=5),
             colLabels=collabel,
             rowLabels=rowlabel,
             loc='center'
         )
+
+    axs[1].plot(accuracy_m[:-1, 3], accuracy_m[:-1, 2])
+    axs[1].set_title("asdfsa")
+    axs[1].set_xlabel("epochs")
     fig.suptitle('Accuracy', fontsize=16)
 
-    # plt.xlabel("Error")
-    # plt.plot(range(n_epics), inacs)
-    plt.title("Accuracy")
     plt.show()
 
-    # P.test(tr_set)
-    # print(P.test(te_set))
 
-part5()
+"""
+** -3.00000000e-01   @attribute 'handicapped-infants' { 'n', 'y'}
+0.00000000e+00  @attribute 'water-project-cost-sharing' { 'n', 'y'}
+**  5.00000000e-01  @attribute 'adoption-of-the-budget-resolution' { 'n', 'y'}
+-1.30000000e+00  @attribute 'physician-fee-freeze' { 'n', 'y'}
+-2.00000000e-01  @attribute 'el-salvador-aid' { 'n', 'y'}
+ 1.00000000e-01 @attribute 'religious-groups-in-schools' { 'n', 'y'}
+ -2.77555756e-17  @attribute 'anti-satellite-test-ban' { 'n', 'y'}
+** -5.00000000e-01 @attribute 'aid-to-nicaraguan-contras' { 'n', 'y'}
+ 1.00000000e-01  @attribute 'mx-missile' { 'n', 'y'}
+-1.00000000e-01  @attribute 'immigration' { 'n', 'y'}
+**  9.00000000e-01  @attribute 'synfuels-corporation-cutback' { 'n', 'y'}
+** -3.00000000e-01 @attribute 'education-spending' { 'n', 'y'}
+  2.77555756e-17  @attribute 'superfund-right-to-sue' { 'n', 'y'}
+-2.00000000e-01  @attribute 'crime' { 'n', 'y'}
+**  5.00000000e-01 @attribute 'duty-free-exports' { 'n', 'y'}
+  2.77555756e-17 @attribute 'export-administration-act-south-africa' { 'n', 'y'}
+**   3.00000000e-01 @attribute 'Class' { 'democrat', 'republican'}
+"""
+
+# part5()
 
 
 
