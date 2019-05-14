@@ -18,14 +18,12 @@ class Perceptron:
         self.weights = np.zeros(input_node_count + 1)
         self.bias = bias
 
-
     def adapt_input(self, x):
         x = np.array(x)
         #account threshold function by appending -1 to input
         if len(x) != len(self.weights):
             x = np.hstack([x, [self.bias]])
         return x
-
 
     def predict(self, x):
         """ 
@@ -37,7 +35,6 @@ class Perceptron:
         net = x @ self.weights
         #gets output of implicit threshold function
         output = 1 if net > 0 else 0
-
         return output, net
     
     def learn(self, x, t):
@@ -55,21 +52,19 @@ class Perceptron:
             delta_weights = self.learning_rate * (t - output) * x
             self.weights += delta_weights
 
-    def train(self, tr_data, te_data, tol=1.23E-7, max_epocs = 15):
+    def train(self, tr_data, te_data, tol=1.23E-20, max_epocs = 15):
         epocs = 0
-        prev_err = 0
-        next_err = 0
-
+        
         while True:
             epocs += 1
-            prev_err = next_err
+            prev_w = self.weights.copy()
             for x in tr_data:
                 self.learn(x[:-1], float(x[-1]))
-            next_err = self.test(te_data)
-            if la.norm(next_err - prev_err) <= tol or epocs >= max_epocs:
+            step_size = la.norm(prev_w - self.weights)
+            if step_size <= tol or epocs >= max_epocs:
                 break
 
-        accuracy = 1 - next_err
+        accuracy = 1 - self.test(te_data) 
         return accuracy, epocs
 
     def test(self, data):
@@ -158,11 +153,6 @@ def part5():
 
 # part5()
 
-
-
-
-
-
 def plot(data, weights, title):
     d2 = np.linspace(-1, 1, 2)
     y2 = [(-weights[2] - x*weights[0])/weights[1] for x in d2]
@@ -173,22 +163,6 @@ def plot(data, weights, title):
     plt.grid(True)
     plt.title(title)
     plt.show()
-
-def part3():
-    sep_dataset, meta = arff.loadarff("linearlySeperable.arff")
-    non_sep_dataset, meta = arff.loadarff("linearlyUnseperable.arff")
-    sep_dataset = sep_dataset.tolist()
-    non_sep_dataset = non_sep_dataset.tolist()
-
-    trainingset = np.array(non_sep_dataset + sep_dataset, dtype=np.float)
-
-    P = Perceptron(.1, 2)
-    P.train(trainingset, 3)
-    
-    plot(trainingset, P.weights, "")
-    # print(trainingset)
-
-
 # part3()
 
 def test():
@@ -205,35 +179,3 @@ def test():
     plot(data, P.weights, "linearly Seperable")
 
 # test()
-
-
-
-    # data, meta = arff.loadarff("linearlySeperable.arff")
-    # data=data.tolist()
-    # P = Perceptron(.1, 2)
-    # P.train(data, 10)
-    # d2 = np.linspace(-.2, .2, 2)
-    # y2 = [(-P.weights[2] - x*P.weights[0])/P.weights[1] for x in d2]
-    # data = np.array(data, dtype=np.float)
-
-    # plt.scatter(data[4:, 0], data[4:, 1])
-    # plt.scatter(data[:4, 0], data[:4, 1])
-    # plt.plot(d2, y2)
-    # plt.grid(True)
-    # plt.title("Linearly Seperable")
-    # plt.show()
-
-    # data, meta = arff.loadarff("linearlyUnseperable.arff")
-    # data=data.tolist()
-    # P = Perceptron(.1, 2)
-    # P.train(data, 10)
-    # d2 = np.linspace(-.2, .2, 2)
-    # y2 = [(-P.weights[2] - x*P.weights[0])/P.weights[1] for x in d2]
-    # data = np.array(data, dtype=np.float)
-
-    # plt.scatter(data[4:, 0], data[4:, 1])
-    # plt.scatter(data[:4, 0], data[:4, 1])
-    # plt.plot(d2, y2)
-    # plt.grid(True)
-    # plt.title("Linearly Unseperable")
-    # plt.show()
