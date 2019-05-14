@@ -12,6 +12,8 @@ import matplotlib.pyplot as plt
 import random
 from numpy import linalg as la
 import tmp_toolkit
+from scipy.io import arff
+
 
 def guess_faces(dataset):
     i_dataset = dataset[:15, :]
@@ -44,7 +46,7 @@ def guess_faces(dataset):
         if d[max(net1, net2, net3)] == x[-1]:
             correct += 1
 
-    print(correct/te_dataset.shape[0])
+    print("3 class image predictor success rate: ", 100 * correct/te_dataset.shape[0], "%")
     # print(P.train(train_data, test_data))
 
 def show_table(collabel, rowlabel, m):
@@ -126,7 +128,8 @@ def part_4():
 def part_5():
     dataset = tmp_toolkit.prepare_voting_data()
     n_splits = 5
-    accuracy_m = np.zeros((n_splits + 1, 4))
+    info_m = np.zeros((n_splits, 4))
+    accuracy_m = np.zeros((n_splits, 26))
     n = len(dataset)
     t = int(n * .7)
     m = len(dataset[0])
@@ -140,27 +143,29 @@ def part_5():
         
         te_accuracy, epochs = P.train(tr_set, te_set)
         tr_accuracy = 1 - P.test(tr_set)
-        accuracy_m[i] = np.array([te_accuracy, tr_accuracy, (te_accuracy+tr_accuracy)/2, epochs])
-
-    accuracy_m[n_splits] = np.mean(accuracy_m, axis=0)
+        info_m[i] = np.array([te_accuracy[-1], tr_accuracy, (te_accuracy[-1]+tr_accuracy)/2, epochs])
+        accuracy_m[i, :] = np.hstack((te_accuracy, np.zeros(26 - len(te_accuracy))))
 
     collabel = ["Test Set Accuracy", "Training Set Accuracy","Average Accuracy", "Epochs"]
-    rowlabel = ["split:" + str(x)  for x in range(1, n_splits + 2)]
-    rowlabel[-1] = "Avg:"
-    show_table(collabel, rowlabel, np.round(accuracy_m, decimals=5))
-    # axs[1].plot(accuracy_m[:-1, 3], accuracy_m[:-1, 2])
-    # axs[1].set_title("asdfsa")
-    # axs[1].set_xlabel("epochs")
-    # fig.suptitle('Accuracy', fontsize=16)
+    rowlabel = ["split:" + str(x)  for x in range(1, n_splits + 1)]
+    show_table(collabel, rowlabel, np.round(info_m, decimals=5))
 
+    plt.plot(range(20), 1 - np.mean(accuracy_m[:, :20], axis=0))
+    plt.title("Voting Accuracy")
+    plt.xlabel("Epochs")
+    plt.ylabel("Misclassification Rate")
+    plt.show()
+
+def part_6(dataset):
+    guess_faces(dataset)
 
 
 
 if __name__=="__main__":
 
-    # dataset = np.load("image_vecs.npy")
-    # guess_faces(dataset)
+    dataset = np.load("image_vecs.npy")
 
-    #part_3()
+    # part_3()
     # part_4()
-    part_5()
+    # part_5()
+    part_6(dataset)

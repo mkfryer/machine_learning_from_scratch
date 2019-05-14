@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import random
 from numpy import linalg as la
+from scipy.io import arff
 
 class Perceptron:
     """Basic perceptron"""
@@ -57,18 +58,19 @@ class Perceptron:
         n = len(te_data[:, 0])
         prediction = np.zeros(n)
         errors = np.zeros(max_epocs + 1)
+        accuracy = []
 
         while True:
+
             for x in tr_data:
                 self.learn(x[:-1], float(x[-1]))
-
             errors[epocs] = self.test(te_data)
-
             epocs += 1
-            if abs(np.mean(errors) - errors[0]) <= tol or epocs >= max_epocs:
+            m = np.mean(errors[:epocs+1])
+            if abs(m - errors[epocs]) <= tol or epocs >= max_epocs:
                 break
-
-        accuracy = 1 - self.test(te_data) 
+            accuracy.append(1 - self.test(te_data))
+        
         return accuracy, epocs
 
     def test(self, data):
