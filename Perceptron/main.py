@@ -7,12 +7,11 @@ from os.path import isfile, join
 from Perceptron import Perceptron
 import numpy as np
 from sklearn.utils import shuffle
-from scipy.io import arff
 from io import StringIO
 import matplotlib.pyplot as plt
 import random
 from numpy import linalg as la
-
+import tmp_toolkit
 
 def guess_faces(dataset):
     i_dataset = dataset[:15, :]
@@ -124,6 +123,35 @@ def part_4():
     plt.show()
 
 
+def part_5():
+    dataset = tmp_toolkit.prepare_voting_data()
+    n_splits = 5
+    accuracy_m = np.zeros((n_splits + 1, 4))
+    n = len(dataset)
+    t = int(n * .7)
+    m = len(dataset[0])
+
+    for i in range(n_splits):
+        random.shuffle(dataset)
+        c_set = np.array(dataset, dtype=int)
+        tr_set = c_set[:t, :]
+        te_set = c_set[t:, :]
+        P = Perceptron(.1, m-1)
+        
+        te_accuracy, epochs = P.train(tr_set, te_set)
+        tr_accuracy = 1 - P.test(tr_set)
+        accuracy_m[i] = np.array([te_accuracy, tr_accuracy, (te_accuracy+tr_accuracy)/2, epochs])
+
+    accuracy_m[n_splits] = np.mean(accuracy_m, axis=0)
+
+    collabel = ["Test Set Accuracy", "Training Set Accuracy","Average Accuracy", "Epochs"]
+    rowlabel = ["split:" + str(x)  for x in range(1, n_splits + 2)]
+    rowlabel[-1] = "Avg:"
+    show_table(collabel, rowlabel, np.round(accuracy_m, decimals=5))
+    # axs[1].plot(accuracy_m[:-1, 3], accuracy_m[:-1, 2])
+    # axs[1].set_title("asdfsa")
+    # axs[1].set_xlabel("epochs")
+    # fig.suptitle('Accuracy', fontsize=16)
 
 
 
@@ -135,3 +163,4 @@ if __name__=="__main__":
 
     #part_3()
     # part_4()
+    part_5()
