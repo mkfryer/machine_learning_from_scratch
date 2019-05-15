@@ -47,9 +47,8 @@ def guess_faces(dataset):
             correct += 1
 
     print("3 class image predictor success rate: ", 100 * correct/te_dataset.shape[0], "%")
-    # print(P.train(train_data, test_data))
 
-def show_table(collabel, rowlabel, m):
+def show_table(collabel, rowlabel, m, title = ""):
     fig, axs = plt.subplots(1,1)
     axs.axis('tight')
     axs.axis('off')
@@ -59,6 +58,7 @@ def show_table(collabel, rowlabel, m):
             rowLabels=rowlabel,
             loc='center'
         )
+    axs.set_title(title)
     plt.show()
 
 def part_3():
@@ -66,32 +66,35 @@ def part_3():
     non_sep_dataset, meta = arff.loadarff("linearlyUnseperable.arff")
     sep_dataset = sep_dataset.tolist()
     non_sep_dataset = non_sep_dataset.tolist()
-    trainingset = np.array(non_sep_dataset + sep_dataset, dtype=np.float)
+    trainingset = np.array(non_sep_dataset + sep_dataset, dtype=np.float64)
 
-    learning_rates = [.00001, .001, .1, .2, .5, .8, .99, .99999]
+    learning_rates = [.0000001, .001, .1, .2, .5, .8, .99, .99999]
     m = np.zeros((len(learning_rates), 3))
 
     for i, rate in enumerate(learning_rates):
         P = Perceptron(rate, 2)
         accuracy, epochs = P.train(trainingset, trainingset)
-        m[i, :] = np.array([rate, accuracy, epochs])
+        m[i, :] = np.array([rate, accuracy[-1], epochs])
 
     collabel = ["Learning Rate", "Accuracy", "Epochs"]
     rowlabel = ["" for x in range(len(learning_rates))]
-    show_table(collabel, rowlabel, m)
+    show_table(collabel, rowlabel, m, "Mixed Linearly Sep/Unsep dataset Preformace")
 
 def part_4():
     ls_data, meta = arff.loadarff("linearlySeperable.arff")
     ls_data = np.array(ls_data.tolist(), dtype=np.float)
     P = Perceptron(.1, 2)
-    print(P.train(ls_data, ls_data))
+    P.train(ls_data, ls_data)
     d2 = np.linspace(-1, 1, 2)
+    print(P.weights)
     y2 = [(-P.weights[2] - x*P.weights[0])/P.weights[1] for x in d2]
 
     plt.scatter(ls_data[4:, 0], ls_data[4:, 1])
     plt.scatter(ls_data[:4, 0], ls_data[:4, 1])
     plt.plot(d2, y2)
     plt.grid(True)
+    plt.xlabel("x axis")
+    plt.ylabel("y axis")
     plt.title("Linearly Seperable")
     plt.show()
 
@@ -107,6 +110,8 @@ def part_4():
     plt.scatter(lu_data[:4, 0], lu_data[:4, 1])
     plt.plot(d2, y2)
     plt.grid(True)
+    plt.xlabel("x axis")
+    plt.ylabel("y axis")
     plt.title("Linearly Unseperable")
     plt.show()
 
@@ -120,6 +125,8 @@ def part_4():
     plt.scatter(data[8:, 0], data[8:, 1])
     plt.scatter(data[:8, 0], data[:8, 1])
     plt.plot(d2, y2)
+    plt.xlabel("x axis")
+    plt.ylabel("y axis")
     plt.grid(True)
     plt.title("Linearly Seperable Mixed with Unseperable")
     plt.show()
@@ -148,9 +155,9 @@ def part_5():
 
     collabel = ["Test Set Accuracy", "Training Set Accuracy","Average Accuracy", "Epochs"]
     rowlabel = ["split:" + str(x)  for x in range(1, n_splits + 1)]
-    show_table(collabel, rowlabel, np.round(info_m, decimals=5))
+    # show_table(collabel, rowlabel, np.round(info_m, decimals=5), title="Voting Accuracy")
 
-    plt.plot(range(20), 1 - np.mean(accuracy_m[:, :20], axis=0))
+    plt.plot(range(6), [sum(accuracy_m[:, x])/len(accuracy_m[:, x]) for x in range(6)])
     plt.title("Voting Accuracy")
     plt.xlabel("Epochs")
     plt.ylabel("Misclassification Rate")
@@ -164,8 +171,7 @@ def part_6(dataset):
 if __name__=="__main__":
 
     dataset = np.load("image_vecs.npy")
-
     # part_3()
     # part_4()
-    # part_5()
-    part_6(dataset)
+    part_5()
+    # part_6(dataset)

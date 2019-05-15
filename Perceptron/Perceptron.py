@@ -20,7 +20,7 @@ class Perceptron:
         self.bias = bias
 
     def adapt_input(self, x):
-        x = np.array(x)
+        x = np.array(x, dtype=np.float64)
         #account threshold function by appending -1 to input
         if len(x) != len(self.weights):
             x = np.hstack([x, [self.bias]])
@@ -52,26 +52,40 @@ class Perceptron:
             """ """
             delta_weights = self.learning_rate * (t - output) * x
             self.weights += delta_weights
+            # print("learning rate:", self.learning_rate, delta_weights)
 
-    def train(self, tr_data, te_data, tol=15E-3, max_epocs = 25):
-        epocs = 0
-        n = len(te_data[:, 0])
-        prediction = np.zeros(n)
-        errors = np.zeros(max_epocs + 1)
-        accuracy = []
+    def train(self, tr_data, te_data, tol=13E-3, max_epocs = 25):
+        epocs = -1
+        errors = []
+        # accuracy = []
+        err_variance_prev = 0
 
         while True:
-
+            epocs += 1
             for x in tr_data:
                 self.learn(x[:-1], float(x[-1]))
-            errors[epocs] = self.test(te_data)
-            epocs += 1
-            m = np.mean(errors[:epocs+1])
-            if abs(m - errors[epocs]) <= tol or epocs >= max_epocs:
+
+            errors.append(self.test(te_data))
+            m = sum(errors)/len(errors)
+            err_variance = la.norm(np.array(errors) - m, ord=2) if len(errors) > 2 else np.inf
+            # print(error, errors)
+            # t = epocs - 3 if epocs > 6 else 0
+            # print(errors[t:epocs+1])
+            # print(errors)
+            # print(errors[epocs - 2:epocs+1])
+            # error = np.inf if epocs < 2 else abs(sum(errors[epocs - 2:epocs+1])/len(errors[epocs-2:epocs+1]) - errors[epocs])
+            # print("error:", error)
+            # m = sum(errors[t:epocs+1])/len(errors[t:epocs+1])
+            # print(m, errors[t:epocs+1], len(errors[t:epocs+1]), errors[epocs])
+            # accuracy.append(1 - self.test(te_data))
+            
+            # print(abs(m - errors[epocs-1]))
+            if abs(err_variance - err_variance_prev) <= tol or epocs >= max_epocs:
                 break
-            accuracy.append(1 - self.test(te_data))
-        
-        return accuracy, epocs
+            err_variance_prev = err_variance
+ 
+
+        return 1 - np.array(errors), epocs
 
     def test(self, data):
         success = 0
@@ -80,7 +94,7 @@ class Perceptron:
             if prediction == x[-1]:
                 success += 1
         
-        err = 1 - success/len(data[:,0])
+        err = 1.0 - success/len(data[:,0])
         return err
 
 
