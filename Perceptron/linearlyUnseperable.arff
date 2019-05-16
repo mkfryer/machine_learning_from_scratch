@@ -1,4 +1,4 @@
-@relation linearlySeparable
+@relation linearlyInseparable
 @attribute a1 real
 @attribute a2 real
 @attribute class {0,1}

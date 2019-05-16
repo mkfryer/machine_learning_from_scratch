@@ -9,9 +9,7 @@ from scipy.io import arff
 class Perceptron:
     """Basic perceptron"""
 
-    # learning_rule = lambda c, t, z, x: c * (t - z) * x
-
-    def __init__(self, learning_rate, input_node_count, bias = 1):
+    def __init__(self, learning_rate, input_node_count, bias = 1.0):
         self.learning_rate = learning_rate
         self.input_node_count = input_node_count
         #initialize weights as zeros and increase dimensionality
@@ -52,13 +50,13 @@ class Perceptron:
             """ """
             delta_weights = self.learning_rate * (t - output) * x
             self.weights += delta_weights
-            # print("learning rate:", self.learning_rate, delta_weights)
 
     def train(self, tr_data, te_data, tol=13E-3, max_epocs = 25):
         epocs = -1
         errors = []
         # accuracy = []
         err_variance_prev = 0
+        errors.append(self.test(te_data))
 
         while True:
             epocs += 1
@@ -68,23 +66,11 @@ class Perceptron:
             errors.append(self.test(te_data))
             m = sum(errors)/len(errors)
             err_variance = la.norm(np.array(errors) - m, ord=2) if len(errors) > 2 else np.inf
-            # print(error, errors)
-            # t = epocs - 3 if epocs > 6 else 0
-            # print(errors[t:epocs+1])
-            # print(errors)
-            # print(errors[epocs - 2:epocs+1])
-            # error = np.inf if epocs < 2 else abs(sum(errors[epocs - 2:epocs+1])/len(errors[epocs-2:epocs+1]) - errors[epocs])
-            # print("error:", error)
-            # m = sum(errors[t:epocs+1])/len(errors[t:epocs+1])
-            # print(m, errors[t:epocs+1], len(errors[t:epocs+1]), errors[epocs])
-            # accuracy.append(1 - self.test(te_data))
             
-            # print(abs(m - errors[epocs-1]))
             if abs(err_variance - err_variance_prev) <= tol or epocs >= max_epocs:
                 break
             err_variance_prev = err_variance
  
-
         return 1 - np.array(errors), epocs
 
     def test(self, data):
@@ -97,6 +83,23 @@ class Perceptron:
         err = 1.0 - success/len(data[:,0])
         return err
 
+# a = np.array(['handicapped-infants'
+# , 'water-project-cost-sharing', 
+# 'adoption-of-the-budget-resolution',
+# 'physician-fee-freeze',
+# 'el-salvador-aid',
+# 'religious-groups-in-schools',
+# 'anti-satellite-test-ban'
+# 'aid-to-nicaraguan-contras'
+# 'mx-missile'
+# 'immigration'
+# 'synfuels-corporation-cutback'
+# 'education-spending'
+# 'superfund-right-to-sue'
+# 'crime'
+# 'duty-free-exports'
+# 'export-administration-act-south-africa'
+# ])
 
 """
 ** -3.00000000e-01   @attribute 'handicapped-infants' { 'n', 'y'}

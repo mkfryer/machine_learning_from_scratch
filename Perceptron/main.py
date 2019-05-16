@@ -66,19 +66,21 @@ def part_3():
     non_sep_dataset, meta = arff.loadarff("linearlyUnseperable.arff")
     sep_dataset = sep_dataset.tolist()
     non_sep_dataset = non_sep_dataset.tolist()
-    trainingset = np.array(non_sep_dataset + sep_dataset, dtype=np.float64)
+    trainingsets = [np.array(sep_dataset, dtype=np.float64), np.array(non_sep_dataset, dtype=np.float64),  np.array(non_sep_dataset + sep_dataset, dtype=np.float64)]
+    titles = ["Linearly Seperable Learning Rate Preformance", "Linearly Inseperable Learning Rate Preformance", "Mixed lin. Sep/Insep data"]
 
     learning_rates = [.0000001, .001, .1, .2, .5, .8, .99, .99999]
     m = np.zeros((len(learning_rates), 3))
 
-    for i, rate in enumerate(learning_rates):
-        P = Perceptron(rate, 2)
-        accuracy, epochs = P.train(trainingset, trainingset)
-        m[i, :] = np.array([rate, accuracy[-1], epochs])
+    for j, title in enumerate(titles):
+        for i, rate in enumerate(learning_rates):
+            P = Perceptron(rate, 2)
+            accuracy, epochs = P.train(trainingsets[j], trainingsets[j])
+            m[i, :] = np.array([rate, accuracy[-1], epochs])
 
-    collabel = ["Learning Rate", "Accuracy", "Epochs"]
-    rowlabel = ["" for x in range(len(learning_rates))]
-    show_table(collabel, rowlabel, m, "Mixed Linearly Sep/Unsep dataset Preformace")
+        collabel = ["Learning Rate", "Accuracy", "Epochs"]
+        rowlabel = ["" for x in range(len(learning_rates))]
+        show_table(collabel, rowlabel, m, title)
 
 def part_4():
     ls_data, meta = arff.loadarff("linearlySeperable.arff")
@@ -86,7 +88,6 @@ def part_4():
     P = Perceptron(.1, 2)
     P.train(ls_data, ls_data)
     d2 = np.linspace(-1, 1, 2)
-    print(P.weights)
     y2 = [(-P.weights[2] - x*P.weights[0])/P.weights[1] for x in d2]
 
     plt.scatter(ls_data[4:, 0], ls_data[4:, 1])
@@ -135,8 +136,10 @@ def part_4():
 def part_5():
     dataset = tmp_toolkit.prepare_voting_data()
     n_splits = 5
-    info_m = np.zeros((n_splits, 4))
+    info_m = np.zeros((n_splits+1, 4))
     accuracy_m = np.zeros((n_splits, 26))
+    weight_m = np.zeros((n_splits, 17))
+
     n = len(dataset)
     t = int(n * .7)
     m = len(dataset[0])
@@ -147,21 +150,51 @@ def part_5():
         tr_set = c_set[:t, :]
         te_set = c_set[t:, :]
         P = Perceptron(.1, m-1)
-        
         te_accuracy, epochs = P.train(tr_set, te_set)
+        # print(np.argsort(np.abs(P.weights)))
+        weight_m[i, :] = P.weights
         tr_accuracy = 1 - P.test(tr_set)
         info_m[i] = np.array([te_accuracy[-1], tr_accuracy, (te_accuracy[-1]+tr_accuracy)/2, epochs])
-        accuracy_m[i, :] = np.hstack((te_accuracy, np.zeros(26 - len(te_accuracy))))
+        accuracy_m[i, :] = np.hstack((1 - te_accuracy, np.zeros(26 - len(te_accuracy))))
 
-    collabel = ["Test Set Accuracy", "Training Set Accuracy","Average Accuracy", "Epochs"]
+    info_m[-1, :] = sum(info_m[:-1, :])/len(info_m[:-1, 0])
+    collabel = ["Test Set Accuracy", "Training Set Accuracy", "Average Accuracy", "Epochs"]
     rowlabel = ["split:" + str(x)  for x in range(1, n_splits + 1)]
-    # show_table(collabel, rowlabel, np.round(info_m, decimals=5), title="Voting Accuracy")
-
-    plt.plot(range(6), [sum(accuracy_m[:, x])/len(accuracy_m[:, x]) for x in range(6)])
+    rowlabel.append("Avg")
+    show_table(collabel, rowlabel, np.round(info_m, decimals=5), title="Voting Accuracy")
+    # plt.plot([0,6], [accuracy_m[-1, 1], accuracy_m[-1, 1]], "")
+    plt.plot(range(6), [sum(accuracy_m[:, x])/5 for x in range(6)])
     plt.title("Voting Accuracy")
+    plt.legend()
     plt.xlabel("Epochs")
     plt.ylabel("Misclassification Rate")
     plt.show()
+
+    w = np.abs(np.average(weight_m, axis = 0))
+
+    a = {
+        0:'handicapped-infants',
+        1:'water-project-cost-sharing', 
+        2:'adoption-of-the-budget-resolution',
+        3:'physician-fee-freeze',
+        4:'el-salvador-aid',
+        5:'religious-groups-in-schools',
+        6:'anti-satellite-test-ban',
+        7:'aid-to-nicaraguan-contras',
+        8:'mx-missile',
+        9:'immigration',
+        10:'synfuels-corporation-cutback',
+        11:'education-spending',
+        12:'superfund-right-to-sue',
+        13:'crime',
+        14:'duty-free-exports',
+        15:'export-administration-act-south-africa'
+    }
+    # print(np.argsort(w))
+    # print(a)
+    # print(w)
+    # print(a.values[list(np.argsort(w))])
+
 
 def part_6(dataset):
     guess_faces(dataset)
@@ -171,7 +204,7 @@ def part_6(dataset):
 if __name__=="__main__":
 
     dataset = np.load("image_vecs.npy")
-    # part_3()
-    # part_4()
+    part_3()
+    part_4()
     part_5()
-    # part_6(dataset)
+    part_6(dataset)
