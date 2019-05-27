@@ -11,10 +11,11 @@ class Node:
     
 
 class DecisionTree:
-    def __init__(self):
+    def __init__(self, data):
         """
 
         """
+        self.data = data
         self.root = None
     
     def calc_entropy(self, targ_col_data):
@@ -37,7 +38,7 @@ class DecisionTree:
 
         for val in vals:
             m = np.where(data == val)[0]
-            sub_entr.append(self.calc_entropy(data[:, -1][m]))
+            sub_entr.append((len(m)/len(data[:, attr_index])) * self.calc_entropy(data[:, -1][m]))
 
         gain = entr_global - sum(sub_entr)
         return gain
@@ -52,11 +53,19 @@ class DecisionTree:
 
         return max_gain_index
 
-    def learn(self, data):
-        i = find_max_gain(data)
-        self.root = Node(data[])
+    # def learn(self, data):
+    #     i = find_max_gain(data)
+    #     self.root = Node(data[])
 
 if __name__=="__main__":
+    print(
+        # (1/3) * np.log2(1/3) + (2/3) * np.log2(2/3)
+        # .919 + np.log2(1/3)
+        # (2/9) * np.log2(1/2) - .113
+        (2/9) * np.log(1)
+    )
+
+
     a = ["sunny", "sunny", "overcast", "rainy", "rainy", "rainy", "overcast", "sunny", "sunny", "rainy", "sunny", "overcast", "overcast", "rainy"]
     b = ["hot", "hot", "hot", "mild", "cool", "cool", "cool", "mild", "cool", "mild", "mild", "mild", "hot", "mild"]
     c = ["high", "high", "high", "high", "normal", "normal", "normal", "high", "normal", "normal", "normal", "high", "normal", "high"]
@@ -80,7 +89,21 @@ if __name__=="__main__":
         for i, y in enumerate(x):
             data[i, j] = d_k[y]
 
-    print(data)
-    print(k_c)
-    T = DecisionTree(data)
-    print(T.find_max_gain(data))
+    # print(data)
+    # print(k_c)
+    a = np.array([
+        [1, 2, 5, 7],
+        [0, 3, 5, 8],
+        [0, 4, 6, 9],
+        [1, 4, 6, 7],
+        [1, 3, 5, 9],
+        [1, 3, 6, 7],
+        [0, 2, 6, 9],
+        [1, 3, 5, 9],
+        [0, 2, 5, 8],
+        ])
+    print(a)
+    T = DecisionTree(a)
+    print(T.calc_gain(a, 0))
+    print(T.calc_gain(a, 1))
+    print(T.calc_gain(a, 2))
