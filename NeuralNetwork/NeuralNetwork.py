@@ -15,10 +15,10 @@ class NeuralNetwork:
         mu, sigma = 0, 0.5
         self.feat_len = len(features)
         self.LR = LR
-        self.W1 = np.random.normal(mu, sigma, size = (hidden_layer_size, input_len)).astype(float)
-        self.W2 = np.random.normal(mu, sigma, size = (self.feat_len, hidden_layer_size)).astype(float)
-        self.B1 = np.random.normal(mu, sigma, size = (hidden_layer_size, 1)).astype(float)
-        self.B2 = np.random.normal(mu, sigma, size = (self.feat_len, 1)).astype(float)
+        self.W1 = np.random.normal(mu, sigma, size = (hidden_layer_size, input_len)).astype(np.float64)
+        self.W2 = np.random.normal(mu, sigma, size = (self.feat_len, hidden_layer_size)).astype(np.float64)
+        self.B1 = np.random.normal(mu, sigma, size = (hidden_layer_size, 1)).astype(np.float64)
+        self.B2 = np.random.normal(mu, sigma, size = (self.feat_len, 1)).astype(np.float64)
 
     def present_weights(self ):
         print("W2", self.W2, "\n")
@@ -38,60 +38,62 @@ class NeuralNetwork:
         Z2, Z3, A2, A3 = self.forwardpass(x)
         self.backprop(Z2, Z3, A2, A3, x, y)
 
-    def train_set(self, train_set, test_set, w=5):
-        m1, n1 = train_set.get_features().data.shape
-        m2, n2 = test_set.get_features().data.shape
-        # n3 = train_set.get_labels()
-        mse_t = []
-        mse_te = []
-        acc_t = []
-        acc_te = []
-        min_mse = np.inf
-        all_mse = []
-        all_acc_te = []
+    def get_errors(self, data):
+        m, n = data.get_features().data.shape
+        mse = 0
+        acc = 0
+        for j in range(m):
+            x = data.get_features().data[j, :].reshape(4,1).astype(np.float64)
+            y_idx = int(data.get_labels().data[j, 0])
+            y = np.zeros((self.feat_len, 1)).reshape(3,1).astype(np.float64)
+            y[y_idx, 0] = 1
+            y_hat = self.predict(x)
+            if np.argmax(y) == np.argmax(y_hat):
+                acc += 1
+            mse += np.linalg.norm(y - y_hat)**2
 
+        acc /= m
+        mse /= m
+        return acc, mse
+
+
+    def train_set(self, train_set, test_set, validation_set, w = 5):
+        m1, n1 = train_set.get_features().data.shape
+        min_acc = np.inf
+        all_mse_te = []
+        all_mse_va = []
+        all_acc_va = []
+        
         while True:
-            err_t = []
-            err_te = []
             
             for i in range(w):
                 train_set.shuffle()
-                test_set.shuffle()
+                validation_set.shuffle()
+                train_set.shuffle()
 
                 #train
                 for j in range(m1):
-                    x = train_set.get_features().data[j, :].reshape(4,1).astype(float)
+                    x = train_set.get_features().data[j, :].reshape(4,1).astype(np.float64)
                     y_idx = int(train_set.get_labels().data[j, 0])
-                    y = np.zeros((self.feat_len, 1)).reshape(3,1).astype(float)
+                    y = np.zeros((self.feat_len, 1)).reshape(3,1).astype(np.float64)
                     y[y_idx, 0] = 1
                     self.train_singleton(x, y)
 
-                #get mse
-                mse = 0
-                acc = 0
-                for j in range(m2):
-                    x = test_set.get_features().data[j, :].reshape(4,1).astype(float)
-                    y_idx = int(test_set.get_labels().data[j, 0])
-                    y = np.zeros((self.feat_len, 1)).reshape(3,1).astype(float)
-                    y[y_idx, 0] = 1
-                    y_hat = self.predict(x)
-                    if np.argmax(y) == np.argmax(y_hat):
-                        acc += 1
-                    mse += np.linalg.norm((y - y_hat)**2)
+                acc_va, mse_va = self.get_errors(validation_set)
+                acc_te, mse_te = self.get_errors(test_set)
 
-                acc /= m2
-                all_acc_te.append(acc)
-                mse /= m2
-                all_mse.append(mse)
+                all_acc_va.append(acc_va)
+                all_mse_va.append(mse_va)
+                all_mse_te.append(mse_te)
 
-            new_min_mes = min(all_mse[-w:])
+            new_min_acc = max(all_acc_va[-w:])
 
-            if min_mse <= new_min_mes:
+            if min_acc > new_min_acc:
                 break
             else:
-                min_mse = new_min_mes
+                min_acc = new_min_acc
 
-        return all_mse, all_acc_te
+        return all_acc_va, all_mse_va, all_mse_te
                 
 
     def forwardpass(self, x):
