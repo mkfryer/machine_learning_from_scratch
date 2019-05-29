@@ -14,7 +14,7 @@ def prob2():
     test_set = arff.create_subset_arff(row_idx=slice(t, v, 1))
     validation_set = arff.create_subset_arff(row_idx=slice(v, n, 1))
 
-    nn = NeuralNetwork(4, 9, [0, 1, 2], LR=.1)
+    nn = NeuralNetwork(4, [9], 3, LR=.1)
     all_acc_va, all_mse_va, all_mse_te = nn.train_set(train_set, test_set, validation_set)
  
     d = [x for x in range(len(all_acc_va))]
@@ -38,7 +38,7 @@ def prob3():
     train_set = arff.create_subset_arff(row_idx=slice(0, t, 1), col_idx = imp_atts)
     test_set = arff.create_subset_arff(row_idx=slice(t, v, 1), col_idx = imp_atts)
     validation_set = arff.create_subset_arff(row_idx=slice(v, n, 1), col_idx = imp_atts)
-    nn = NeuralNetwork(8, 16, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], LR=.01, momentum=.4)
+    nn = NeuralNetwork(8, [16, 14], 11, LR=.01, momentum=0)
     all_acc_va, all_mse_va, all_mse_te = nn.train_set(train_set, test_set, validation_set, w = 5)
 
     d = [x for x in range(len(all_acc_va))]
