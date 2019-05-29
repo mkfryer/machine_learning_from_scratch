@@ -10,11 +10,17 @@ def sigmoid_derivative(x):
     return sigmoid(x) * (1.0 - sigmoid(x))
 
 class NeuralNetwork:
-    def __init__(self, input_len, hidden_layer_size, features, LR = .1):
+    def __init__(self, input_len, hidden_layer_size, features, LR = .1, momentum = 0):
         # mean and standard deviation
         mu, sigma = 0, 0.5
+        self.momentum = momentum
         self.feat_len = len(features)
         self.LR = LR
+        self.input_len = input_len
+        self.W1_prev = np.zeros((hidden_layer_size, input_len))
+        self.W2_prev = np.zeros((self.feat_len, hidden_layer_size))
+        self.B2_prev = np.zeros((self.feat_len, 1))
+        self.B1_prev = np.zeros((hidden_layer_size, 1))
         self.W1 = np.random.normal(mu, sigma, size = (hidden_layer_size, input_len)).astype(np.float64)
         self.W2 = np.random.normal(mu, sigma, size = (self.feat_len, hidden_layer_size)).astype(np.float64)
         self.B1 = np.random.normal(mu, sigma, size = (hidden_layer_size, 1)).astype(np.float64)
@@ -43,9 +49,9 @@ class NeuralNetwork:
         mse = 0
         acc = 0
         for j in range(m):
-            x = data.get_features().data[j, :].reshape(4,1).astype(np.float64)
+            x = data.get_features().data[j, :].reshape(self.input_len ,1).astype(np.float64)
             y_idx = int(data.get_labels().data[j, 0])
-            y = np.zeros((self.feat_len, 1)).reshape(3,1).astype(np.float64)
+            y = np.zeros((self.feat_len, 1)).reshape(self.feat_len, 1).astype(np.float64)
             y[y_idx, 0] = 1
             y_hat = self.predict(x)
             if np.argmax(y) == np.argmax(y_hat):
@@ -59,13 +65,12 @@ class NeuralNetwork:
 
     def train_set(self, train_set, test_set, validation_set, w = 5):
         m1, n1 = train_set.get_features().data.shape
-        min_acc = np.inf
+        min_mse = np.inf
         all_mse_te = []
         all_mse_va = []
         all_acc_va = []
         
         while True:
-            
             for i in range(w):
                 train_set.shuffle()
                 validation_set.shuffle()
@@ -73,9 +78,9 @@ class NeuralNetwork:
 
                 #train
                 for j in range(m1):
-                    x = train_set.get_features().data[j, :].reshape(4,1).astype(np.float64)
+                    x = train_set.get_features().data[j, :].reshape(self.input_len,1).astype(np.float64)
                     y_idx = int(train_set.get_labels().data[j, 0])
-                    y = np.zeros((self.feat_len, 1)).reshape(3,1).astype(np.float64)
+                    y = np.zeros((self.feat_len, 1)).reshape(self.feat_len,1).astype(np.float64)
                     y[y_idx, 0] = 1
                     self.train_singleton(x, y)
 
@@ -86,12 +91,12 @@ class NeuralNetwork:
                 all_mse_va.append(mse_va)
                 all_mse_te.append(mse_te)
 
-            new_min_acc = max(all_acc_va[-w:])
+            new_min_mse = min(all_mse_va[-w:])
 
-            if min_acc > new_min_acc:
+            if min_mse < new_min_mse:
                 break
             else:
-                min_acc = new_min_acc
+                min_mse = new_min_mse
 
         return all_acc_va, all_mse_va, all_mse_te
                 
@@ -111,10 +116,10 @@ class NeuralNetwork:
         Delta3 = -(y - A3) * sigmoid_derivative(Z3)
         Delta2 = (self.W2.T @ Delta3) * sigmoid_derivative(Z2)
 
-        D_W2 = self.LR * (Delta3 @ A2.T)
-        D_W1 = self.LR * (Delta2 @ x.T)
-        D_B2 = self.LR * (Delta3)
-        D_B1 = self.LR * (Delta2)
+        D_W2 = self.LR * (Delta3 @ A2.T) + self.momentum * self.W2_prev
+        D_W1 = self.LR * (Delta2 @ x.T) + self.momentum * self.W1_prev
+        D_B2 = self.LR * (Delta3) + self.momentum * self.B2_prev
+        D_B1 = self.LR * (Delta2) + self.momentum * self.B1_prev
         
         self.W2 -= D_W2 
         self.W1 -= D_W1

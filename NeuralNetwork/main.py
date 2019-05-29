@@ -5,8 +5,6 @@ from NeuralNetwork import NeuralNetwork, test_basics
 import matplotlib.pyplot as plt
 
 def prob2():
-    test_basics()
-
     arff = Arff(sys.argv[1])
     arff.shuffle()
     n = len(arff.get_labels().data)
@@ -31,8 +29,29 @@ def prob2():
 
 def prob3():
     """ """
-    
+    arff = Arff(sys.argv[2])
+    imp_atts = [1, 3, 4, 5, 7, 9, 11, 12, 13]
+    arff.shuffle()
+    n = len(arff.get_labels().data)
+    t = int(n * .55)
+    v = n - int(n * .20)
+    train_set = arff.create_subset_arff(row_idx=slice(0, t, 1), col_idx = imp_atts)
+    test_set = arff.create_subset_arff(row_idx=slice(t, v, 1), col_idx = imp_atts)
+    validation_set = arff.create_subset_arff(row_idx=slice(v, n, 1), col_idx = imp_atts)
+    nn = NeuralNetwork(8, 16, [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10], LR=.01, momentum=.4)
+    all_acc_va, all_mse_va, all_mse_te = nn.train_set(train_set, test_set, validation_set, w = 5)
+
+    d = [x for x in range(len(all_acc_va))]
+    plt.plot(d, all_mse_te, label="test MSE")
+    plt.plot(d, all_mse_va, label="Val. MSE")
+    plt.plot(d, all_acc_va, label="Val. Accuracy")
+    plt.title("Vowel Dataset")
+    plt.xlabel("Epochs")
+    plt.ylabel("%")
+    plt.legend()
+    plt.show()
 
 
 if __name__ == "__main__":
-    prob2()
+    test_basics()
+    prob3()
