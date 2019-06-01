@@ -8,7 +8,10 @@ class Node:
     def __init__(self, data):
         # self.children = children
         self.data = data
-    
+        self.children = []
+
+    def add_child(self, node):
+        self.children.append(node)
 
 class DecisionTree:
     def __init__(self, data):
@@ -37,7 +40,7 @@ class DecisionTree:
         vals = np.unique(data[:, attr_index])
 
         for val in vals:
-            m = np.where(data == val)[0]
+            m, = np.where(data == val)
             sub_entr.append((len(m)/len(data[:, attr_index])) * self.calc_entropy(data[:, -1][m]))
 
         gain = entr_global - sum(sub_entr)
@@ -53,11 +56,34 @@ class DecisionTree:
 
         return max_gain_index
 
-    # def learn(self, data):
-    #     i = find_max_gain(data)
-    #     self.root = Node(data[])
+    def split_data(self, data, i):
+        """
+        j - index of column(attr) to drop
+        i - index of column(attr) to split on
+        """
+        attributes = np.unique(data[:, i])
+        splits = []
+        for attr in attributes:
+            idx_mask, = np.where(data[:, i] == attr)
+            splits.append(data[idx_mask, :])
 
-if __name__=="__main__":
+        return splits
+        
+    def start_learn(self, data):
+        self.root = Node(data)
+        bst_attr_idx = find_max_gain(data)
+        data_attr_splits = split_data(data, bst_attr_idx)
+
+        for data_split in data_attr_splits:
+            child = Node(data_split)
+            self.root.add_child(child)
+            self.learn(child)
+
+    def learn(self, p_node):
+        data = p_node.data
+        
+
+if __name__ == "__main__":
     print(
         # (1/3) * np.log2(1/3) + (2/3) * np.log2(2/3)
         # .919 + np.log2(1/3)
@@ -70,7 +96,7 @@ if __name__=="__main__":
     b = ["hot", "hot", "hot", "mild", "cool", "cool", "cool", "mild", "cool", "mild", "mild", "mild", "hot", "mild"]
     c = ["high", "high", "high", "high", "normal", "normal", "normal", "high", "normal", "normal", "normal", "high", "normal", "high"]
     d = ["weak", "strong", "weak", "weak", "weak", "strong", "strong", "weak", "weak", "weak", "strong", "strong", "weak", "strong"]
-    e =["no", "no", "yes", "yes", "yes", "no", "yes", "no", "yes", "yes", "yes" , "yes", "yes", "no"]
+    e = ["no", "no", "yes", "yes", "yes", "no", "yes", "no", "yes", "yes", "yes" , "yes", "yes", "no"]
 
     f = [a, b, c, d, e]
     # keys = set()
@@ -102,8 +128,10 @@ if __name__=="__main__":
         [1, 3, 5, 9],
         [0, 2, 5, 8],
         ])
-    print(a)
+    # print(a)
     T = DecisionTree(a)
-    print(T.calc_gain(a, 0))
-    print(T.calc_gain(a, 1))
-    print(T.calc_gain(a, 2))
+    # print(T.calc_gain(a, 0))
+    # print(T.calc_gain(a, 1))
+    # print(T.calc_gain(a, 2))
+    # print(T.find_max_gain(a))
+    T.split_data(a, 0)
