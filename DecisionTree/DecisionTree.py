@@ -3,20 +3,45 @@ Decision Tree
 """
 import numpy as np
 
+class Branch:
+
+    def __init__(self, attr_idx, cat_idx):
+        self.attr_idx = attr_idx
+        self.cat_idx = cat_idx
+        self.c_node = None
+
+    def add_connection(self, node):
+        self.c_node = node
+
+    # def show(self):
+    #     if self.c_node != None:
+    #         print(self.c_node.get_class())
+    #         for branch in self.c_node.branches:
+    #             branch.show()
+
 class Node:
 
-    def __init__(self, data):
+    def __init__(self, data, attr_idx):
         # self.children = children
         self.data = data
-        self.children = []
+        self.branches = []
+        self.attr_idx = attr_idx
 
-    def add_child(self, node):
-        self.children.append(node)
+    def connect_branch(self, branch):
+        self.branches.append(branch)
+
+    def get_class(self):
+        cols = ["outlook", "temperature", "humidity" ,"wind", "playtennis"]
+        print(cols[self.attr_idx])
+        for branch in self.branches:
+            branch.c_node.get_class()
+        print("exausted branches")
+
+
 
 class DecisionTree:
     def __init__(self, data):
         """
-
         """
         self.data = data
         self.m, self.n = data.shape
@@ -46,12 +71,13 @@ class DecisionTree:
         gain = entr_global - sum(sub_entr)
         return gain
 
-    def find_max_gain(self, data, avail_attrs_idxs):
-        #ignore last column since it is the category
-        gain = np.zeros(self.n)
-        for i in range(self.n-1):
-            gain[i] = self.calc_gain(data, i)
-        max_gain_index = np.argmax(gain)
+    def find_max_gain(self, data, attrs_idx_states):
+        n = len(attrs_idx_states)
+        gains = np.zeros(n)
+        active_attr_indxs, = np.where(attrs_idx_states == 1)
+        for attr_idx in active_attr_indxs:
+            gains[attr_idx] = self.calc_gain(data, attr_idx)
+        max_gain_index = np.argmax(gains)
 
         return max_gain_index
 
@@ -67,42 +93,50 @@ class DecisionTree:
         return splits
         
     def start_learn(self, data):
-        self.root = Node(data)
-        print(data)
-        #unused attributes
-        avail_attrs_idxs = np.arange(self.n)
+        #attributes to split on. Can split if attr_indx = 1, 0 means you cant use it
+        attrs_idx_states = np.ones(self.n)
+        #dont split on category
+        attrs_idx_states[-1] = 0 
         #index corresponding to best gain
-        bst_attr_idx = self.find_max_gain(data)
-        data_attr_splits = self.split_data(data, bst_attr_idx)
-        #removed used attribute
-        avail_attrs_idxs = np.delete(avail_attrs_idxs, [bst_attr_idx], None)
-        for data_split in data_attr_splits:
-            # print(, data_split)
-            child = Node(data_split)
-            self.root.add_child(child)
-            self.learn(child, avail_attrs_idxs)
+        bst_attr_idx = self.find_max_gain(data, attrs_idx_states)
+        self.root = Node(data, bst_attr_idx)
 
-    def learn(self, p_node, avail_attrs_idxs):
-        data = p_node.data
-        bst_attr_idx = self.find_max_gain(data, avail_attrs_idxs)
-        avail_attrs_idxs = np.delete(avail_attrs_idxs, [bst_attr_idx], None)
         data_attr_splits = self.split_data(data, bst_attr_idx)
-        print(data_attr_splits)
-        for data_split in data_attr_splits:
-            print("splt: ", data_split)
-            child = Node(data_split)
-            self.root.add_child(child)
+        # avail_attrs_idxs = np.delete(avail_attrs_idxs, [bst_attr_idx], None)
+        #set state used attr_idx as used
+        attrs_idx_states[bst_attr_idx] = 0
+        for i, data_split in enumerate(data_attr_splits):
+            branch = Branch(bst_attr_idx, i)
+            self.root.connect_branch(branch)
+            self.learn(data_split, branch, attrs_idx_states.copy())
+
+    def learn(self, data, branch, attrs_idx_states):
+        bst_attr_idx = self.find_max_gain(data, attrs_idx_states)
+        child = Node(data, bst_attr_idx)
+        branch.add_connection(child)
+
+        #set state used attr_idx as used
+        attrs_idx_states[bst_attr_idx] = 0
+        data_attr_splits = self.split_data(data, bst_attr_idx)
+
+        for i, data_split in enumerate(data_attr_splits):
             #base case - learn only when data_split is not pure
             if len(np.unique(data[:, -1])) > 1:
-                self.learn(child, avail_attrs_idxs)
+                branch = Branch(bst_attr_idx, i)
+                child.connect_branch(branch)
+                self.learn(data_split, branch, attrs_idx_states.copy())
+
+    def show_tree(self):
+        """ """
+        self.root.get_class()
 
 if __name__ == "__main__":
-    print(
-        # (1/3) * np.log2(1/3) + (2/3) * np.log2(2/3)
-        # .919 + np.log2(1/3)
-        # (2/9) * np.log2(1/2) - .113
-        (2/9) * np.log(1)
-    )
+    # print(
+    #     # (1/3) * np.log2(1/3) + (2/3) * np.log2(2/3)
+    #     # .919 + np.log2(1/3)
+    #     # (2/9) * np.log2(1/2) - .113
+    #     (2/9) * np.log(1)
+    # )
 
 
     a = ["sunny", "sunny", "overcast", "rainy", "rainy", "rainy", "overcast", "sunny", "sunny", "rainy", "sunny", "overcast", "overcast", "rainy"]
@@ -129,22 +163,24 @@ if __name__ == "__main__":
             data[i, j] = d_k[y]
 
     # print(data)
+    # print(data)
     # print(k_c)
-    a = np.array([
-        [1, 2, 5, 7],
-        [0, 3, 5, 8],
-        [0, 4, 6, 9],
-        [1, 4, 6, 7],
-        [1, 3, 5, 9],
-        [1, 3, 6, 7],
-        [0, 2, 6, 9],
-        [1, 3, 5, 9],
-        [0, 2, 5, 8],
-        ])
+    # a = np.array([
+    #     [1, 2, 5, 7],
+    #     [0, 3, 5, 8],
+    #     [0, 4, 6, 9],
+    #     [1, 4, 6, 7],
+    #     [1, 3, 5, 9],
+    #     [1, 3, 6, 7],
+    #     [0, 2, 6, 9],
+    #     [1, 3, 5, 9],
+    #     [0, 2, 5, 8],
+    #     ])
     # print(a)
-    T = DecisionTree(a)
+    T = DecisionTree(data)
     # print(T.calc_gain(a, 0))
     # print(T.calc_gain(a, 1))
     # print(T.calc_gain(a, 2))
-    # print(T.find_max_gain(a))
-    T.start_learn(a)
+    # print(T.find_max_gain(a, np.array([1, 1, 0])))
+    T.start_learn(data)
+    T.show_tree()
