@@ -19,6 +19,7 @@ class DecisionTree:
 
         """
         self.data = data
+        self.m, self.n = data.shape
         self.root = None
     
     def calc_entropy(self, targ_col_data):
@@ -33,24 +34,22 @@ class DecisionTree:
     
     def calc_gain(self, data, attr_index):
         """ """
-        # subdata = np.vstack((self.data[:, attr_index], self.data[:, -1])).T
-        # subdata = subdata[row_mask]
+        m, n = data.shape
         entr_global = self.calc_entropy(self.data[:, -1])
         sub_entr = []
-        vals = np.unique(data[:, attr_index])
-
-        for val in vals:
-            m, = np.where(data == val)
-            sub_entr.append((len(m)/len(data[:, attr_index])) * self.calc_entropy(data[:, -1][m]))
+        categories = np.unique(data[:, attr_index])
+       
+        for cat in categories:
+            cat_mask = np.where(data == cat)[0]
+            sub_entr.append((len(cat_mask)/m) * self.calc_entropy(data[:, -1][cat_mask]))
 
         gain = entr_global - sum(sub_entr)
         return gain
 
-    def find_max_gain(self, data):
-        m, n = data.shape
+    def find_max_gain(self, data, avail_attrs_idxs):
         #ignore last column since it is the category
-        gain = np.zeros(n-1)
-        for i in range(n-1):
+        gain = np.zeros(self.n)
+        for i in range(self.n-1):
             gain[i] = self.calc_gain(data, i)
         max_gain_index = np.argmax(gain)
 
@@ -58,7 +57,6 @@ class DecisionTree:
 
     def split_data(self, data, i):
         """
-        j - index of column(attr) to drop
         i - index of column(attr) to split on
         """
         attributes = np.unique(data[:, i])
@@ -66,22 +64,37 @@ class DecisionTree:
         for attr in attributes:
             idx_mask, = np.where(data[:, i] == attr)
             splits.append(data[idx_mask, :])
-
         return splits
         
     def start_learn(self, data):
         self.root = Node(data)
-        bst_attr_idx = find_max_gain(data)
-        data_attr_splits = split_data(data, bst_attr_idx)
-
+        print(data)
+        #unused attributes
+        avail_attrs_idxs = np.arange(self.n)
+        #index corresponding to best gain
+        bst_attr_idx = self.find_max_gain(data)
+        data_attr_splits = self.split_data(data, bst_attr_idx)
+        #removed used attribute
+        avail_attrs_idxs = np.delete(avail_attrs_idxs, [bst_attr_idx], None)
         for data_split in data_attr_splits:
+            # print(, data_split)
             child = Node(data_split)
             self.root.add_child(child)
-            self.learn(child)
+            self.learn(child, avail_attrs_idxs)
 
-    def learn(self, p_node):
+    def learn(self, p_node, avail_attrs_idxs):
         data = p_node.data
-        
+        bst_attr_idx = self.find_max_gain(data, avail_attrs_idxs)
+        avail_attrs_idxs = np.delete(avail_attrs_idxs, [bst_attr_idx], None)
+        data_attr_splits = self.split_data(data, bst_attr_idx)
+        print(data_attr_splits)
+        for data_split in data_attr_splits:
+            print("splt: ", data_split)
+            child = Node(data_split)
+            self.root.add_child(child)
+            #base case - learn only when data_split is not pure
+            if len(np.unique(data[:, -1])) > 1:
+                self.learn(child, avail_attrs_idxs)
 
 if __name__ == "__main__":
     print(
@@ -134,4 +147,4 @@ if __name__ == "__main__":
     # print(T.calc_gain(a, 1))
     # print(T.calc_gain(a, 2))
     # print(T.find_max_gain(a))
-    T.split_data(a, 0)
+    T.start_learn(a)
