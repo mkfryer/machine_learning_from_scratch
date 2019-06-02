@@ -3,6 +3,10 @@ Decision Tree
 """
 import numpy as np
 import pandas as pd
+import networkx as nx
+import matplotlib.patches as mpatches
+import matplotlib.animation
+from matplotlib import pyplot as plt
 
 class Branch:
 
@@ -32,6 +36,21 @@ class Node:
                 
         print("exausted branches")
 
+    def add_edges(self, G, labels):
+        for branch in self.branches:
+            if type(branch.c_node) == Node:
+                G.add_node(branch.c_node.attribute)
+                G.add_edge(branch.c_node.attribute, self.attribute)
+                labels[(branch.c_node.attribute, self.attribute)] = branch.category
+                branch.c_node.add_edges(G, labels)
+            elif type(branch.c_node) == LeafNode:
+                """ """
+                id_n = self.attribute[:2] + "-" + branch.c_node.label
+                G.add_node(id_n)  
+                G.add_edge(id_n, self.attribute)
+                labels[(id_n, self.attribute)] = branch.category
+
+        return labels
 class LeafNode(Node):
     def __init__(self, data, label):
         super().__init__(data, None)
@@ -133,7 +152,16 @@ class DecisionTree:
 
     def show_tree(self):
         """ """
-        self.root.get_class()
+        edge_labels = {}
+        G = nx.Graph()
+        G.add_node(self.root.attribute)
+        self.root.add_edges(G, edge_labels)
+        pos = nx.spring_layout(G, k=0.05, iterations=20)
+
+        nx.draw(G, pos, with_labels=True, font_weight='bold')
+        nx.draw_networkx_edge_labels(G, edge_labels=edge_labels, pos=pos)
+
+        plt.show()
 
 if __name__ == "__main__":
 
@@ -144,6 +172,7 @@ if __name__ == "__main__":
             ["weak", "strong", "weak", "weak", "weak", "strong", "strong", "weak", "weak", "weak", "strong", "strong", "weak", "strong"],
             ["no", "no", "yes", "yes", "yes", "no", "yes", "no", "yes", "yes", "yes" , "yes", "yes", "no"],
         ]).T
+    
     attributes = ["outlook", "temperature", "humidity" ,"wind", "playtennis", "no", "yes"]
     T = DecisionTree(f, attributes)
     T.start_learn(f)
