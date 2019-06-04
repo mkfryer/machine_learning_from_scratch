@@ -10,9 +10,10 @@ from matplotlib import pyplot as plt
 
 class Branch:
 
-    def __init__(self, category):
+    def __init__(self, category, popularity):
         self.category = category
         self.c_node = None
+        self.popularity = popularity
 
     def add_connection(self, node):
         self.c_node = node
@@ -23,14 +24,23 @@ class Node:
         self.branches = {}
         self.attribute = attribute
         self.attribute_idx = attribute_idx
+        self.most_common_branch = None
 
     def connect_branch(self, branch, category):
+        if type(self.most_common_branch) != Branch or self.most_common_branch.popularity > branch.popularity:
+            self.most_common_branch = branch
+
+
         self.branches[category] = branch
 
     def predict(self, x):
         category = x[self.attribute_idx]
-        print("category", self.attribute_idx)
-        return self.branches[category].c_node.predict(x)
+        # print("category", self.attribute_idx)
+        # print(self.branches)
+        if category in self.branches.keys():
+            return self.branches[category].c_node.predict(x)
+        else:
+            return self.most_common_branch.c_node.predict(x)
 
     def get_class(self, s = ""):
         s = s + " node:" + self.attribute
@@ -134,7 +144,7 @@ class DecisionTree:
         attrs_idx_states[bst_attr_idx] = 0
         for key in data_attr_splits.keys():
             data_split = data_attr_splits[key]
-            branch = Branch(key)
+            branch = Branch(key, len(data_split[:, 0]))
             self.root.connect_branch(branch, key)
             self.learn(data_split, branch, attrs_idx_states.copy())
 
@@ -145,6 +155,7 @@ class DecisionTree:
             child = LeafNode(data, data[0, -1])
             branch.add_connection(child)
             return
+            
 
         bst_attr_idx = self.find_max_gain(data, attrs_idx_states)
         #set state used attr_idx as used
@@ -156,7 +167,7 @@ class DecisionTree:
         for key in data_attr_splits.keys():
             data_split = data_attr_splits[key]
             if len(data_split) > 0:
-                branch = Branch(key)
+                branch = Branch(key, len(data_split[:, 0]))
                 child.connect_branch(branch, key)
                 self.learn(data_split, branch, attrs_idx_states.copy())
 
@@ -174,16 +185,17 @@ class DecisionTree:
         plt.show()
 
     def predict(self, x, y):
-        print(x, y)
         label = self.root.predict(x)
-        print("predicting", x, y, label)
+        return label
+        # print("predicting", x, y, label)
 
     def predict_set(self, data, labels):
         n = len(data[:, 0])
         predictions = np.zeros(n)
         for i in range(n):
             predictions[i] = self.predict(data[i, :], labels[i])
-        return (labels @ predictions)/n
+        errors = np.equal(labels, predictions)
+        return sum(errors)/n
 
 
 if __name__ == "__main__":
