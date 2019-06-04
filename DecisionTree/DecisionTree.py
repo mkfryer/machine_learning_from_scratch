@@ -10,8 +10,8 @@ from matplotlib import pyplot as plt
 
 class Branch:
 
-    def __init__(self, category, popularity):
-        self.category = category
+    def __init__(self, category_idx, popularity):
+        self.category_idx = category_idx
         self.c_node = None
         self.popularity = popularity
 
@@ -19,36 +19,37 @@ class Branch:
         self.c_node = node
 
 class Node:
-    def __init__(self, data, attribute, attribute_idx):
+    def __init__(self, data, attribute, attribute_idx, feature_labels):
         self.data = data
         self.branches = {}
         self.attribute = attribute
         self.attribute_idx = attribute_idx
         self.most_common_branch = None
+        self.feature_labels = feature_labels
 
-    def connect_branch(self, branch, category):
+    def connect_branch(self, branch, category_idx):
         if type(self.most_common_branch) != Branch or self.most_common_branch.popularity > branch.popularity:
             self.most_common_branch = branch
-
-
-        self.branches[category] = branch
+        self.branches[category_idx] = branch
 
     def predict(self, x):
-        category = x[self.attribute_idx]
+        category_idx = x[self.attribute_idx]
         # print("category", self.attribute_idx)
         # print(self.branches)
-        if category in self.branches.keys():
-            return self.branches[category].c_node.predict(x)
+        if category_idx in self.branches.keys():
+            # print(self.branches.keys())
+            return self.branches[category_idx].c_node.predict(x)
         else:
+            # print(self.branches.keys())
             return self.most_common_branch.c_node.predict(x)
 
     def get_class(self, s = ""):
         s = s + " node:" + self.attribute
-        for branch in self.branches:
-            if type(branch.c_node) == Node:
-                branch.c_node.get_class(s + " branch:" + branch.category)
-            elif type(branch.c_node) == LeafNode:
-                print(s + " branch:" + branch.category +  " label:" + branch.c_node.label)
+        for key in self.branches.keys():
+            if type(self.branches[key].c_node) == Node:
+                self.branches[key].c_node.get_class(s + " branch:" + key)
+            elif type(self.branches[key].c_node) == LeafNode:
+                print(s + " branch:" + key +  " label:" + self.branches[key].c_node.label)
                 
         print("exausted branches")
 
@@ -57,32 +58,39 @@ class Node:
             if type(branch.c_node) == Node:
                 G.add_node(branch.c_node.attribute)
                 G.add_edge(branch.c_node.attribute, self.attribute)
-                labels[(branch.c_node.attribute, self.attribute)] = branch.category
+                # print(self.feature_labels, self.attribute_idx, branch.category)
+                labels[(branch.c_node.attribute, self.attribute)] = self.feature_labels[self.attribute_idx][branch.category_idx] + ":" + str(branch.popularity)
                 branch.c_node.add_edges(G, labels)
             elif type(branch.c_node) == LeafNode:
                 """ """
                 id_n = str(self.attribute[:2]) + "-" + str(branch.c_node.label)
                 G.add_node(id_n)  
                 G.add_edge(id_n, self.attribute)
-                labels[(id_n, self.attribute)] = branch.category
+                labels[(id_n, self.attribute)] = self.feature_labels[self.attribute_idx][branch.category_idx] + ":" + str(branch.popularity)
 
         return labels
 class LeafNode(Node):
     def __init__(self, data, label):
-        super().__init__(data, None, None)
+        super().__init__(data, None, None, None)
         self.label = label
 
     def predict(self, x):
         return self.label
 
 class DecisionTree:
-    def __init__(self, data, attributes):
+    def __init__(self, data, attributes, feature_labels):
         """
         """
         self.data = data
         self.m, self.n = data.shape
         self.root = None
         self.attributes = attributes
+        self.feature_labels = feature_labels
+        self.nodes = []
+
+    def prune(self):
+        trees = []
+
     
     def calc_entropy(self, targ_col_data):
         uniq = np.unique(targ_col_data)
@@ -136,8 +144,8 @@ class DecisionTree:
         #index corresponding to best gain
         bst_attr_idx = self.find_max_gain(data, attrs_idx_states)
 
-        self.root = Node(data, self.attributes[bst_attr_idx], bst_attr_idx)
-
+        self.root = Node(data, self.attributes[bst_attr_idx], bst_attr_idx, self.feature_labels)
+        # self.nodes.append(self.root)
         data_attr_splits = self.split_data(data, bst_attr_idx)
         # avail_attrs_idxs = np.delete(avail_attrs_idxs, [bst_attr_idx], None)
         #set state used attr_idx as used
@@ -160,16 +168,18 @@ class DecisionTree:
         bst_attr_idx = self.find_max_gain(data, attrs_idx_states)
         #set state used attr_idx as used
         attrs_idx_states[bst_attr_idx] = 0
-        child = Node(data, self.attributes[bst_attr_idx], bst_attr_idx)
+        child = Node(data, self.attributes[bst_attr_idx], bst_attr_idx, self.feature_labels)
+        self.nodes.append(child)
         branch.add_connection(child)
 
         data_attr_splits = self.split_data(data, bst_attr_idx)
         for key in data_attr_splits.keys():
             data_split = data_attr_splits[key]
-            if len(data_split) > 0:
+            if len(data_split[:, 0]) > 0:
                 branch = Branch(key, len(data_split[:, 0]))
                 child.connect_branch(branch, key)
                 self.learn(data_split, branch, attrs_idx_states.copy())
+
 
     def show_tree(self):
         """ """
@@ -179,6 +189,7 @@ class DecisionTree:
         self.root.add_edges(G, edge_labels)
         pos = nx.spring_layout(G, k=0.05, iterations=20)
 
+        plt.figure(3, figsize=(11,11)) 
         nx.draw(G, pos, with_labels=True, font_weight='bold')
         nx.draw_networkx_edge_labels(G, edge_labels=edge_labels, pos=pos)
 
@@ -191,11 +202,11 @@ class DecisionTree:
 
     def predict_set(self, data, labels):
         n = len(data[:, 0])
-        predictions = np.zeros(n)
+        num_correct = 0
         for i in range(n):
-            predictions[i] = self.predict(data[i, :], labels[i])
-        errors = np.equal(labels, predictions)
-        return sum(errors)/n
+            if self.predict(data[i, :], labels[i]) == labels[i]:
+                num_correct += 1
+        return num_correct/n
 
 
 if __name__ == "__main__":
