@@ -18,13 +18,19 @@ class Branch:
         self.c_node = node
 
 class Node:
-    def __init__(self, data, attribute):
+    def __init__(self, data, attribute, attribute_idx):
         self.data = data
-        self.branches = []
+        self.branches = {}
         self.attribute = attribute
+        self.attribute_idx = attribute_idx
 
-    def connect_branch(self, branch):
-        self.branches.append(branch)
+    def connect_branch(self, branch, category):
+        self.branches[category] = branch
+
+    def predict(self, x):
+        category = x[self.attribute_idx]
+        print("category", self.attribute_idx)
+        return self.branches[category].c_node.predict(x)
 
     def get_class(self, s = ""):
         s = s + " node:" + self.attribute
@@ -37,7 +43,7 @@ class Node:
         print("exausted branches")
 
     def add_edges(self, G, labels):
-        for branch in self.branches:
+        for branch in self.branches.values():
             if type(branch.c_node) == Node:
                 G.add_node(branch.c_node.attribute)
                 G.add_edge(branch.c_node.attribute, self.attribute)
@@ -45,7 +51,7 @@ class Node:
                 branch.c_node.add_edges(G, labels)
             elif type(branch.c_node) == LeafNode:
                 """ """
-                id_n = self.attribute[:2] + "-" + branch.c_node.label
+                id_n = str(self.attribute[:2]) + "-" + str(branch.c_node.label)
                 G.add_node(id_n)  
                 G.add_edge(id_n, self.attribute)
                 labels[(id_n, self.attribute)] = branch.category
@@ -53,9 +59,11 @@ class Node:
         return labels
 class LeafNode(Node):
     def __init__(self, data, label):
-        super().__init__(data, None)
+        super().__init__(data, None, None)
         self.label = label
 
+    def predict(self, x):
+        return self.label
 
 class DecisionTree:
     def __init__(self, data, attributes):
@@ -84,7 +92,7 @@ class DecisionTree:
         categories = np.unique(data[:, attr_index])
 
         for cat in categories:
-            cat_mask = np.where(data == cat)[0]
+            cat_mask = np.where(data[:, attr_index] == cat)[0]
             sub_entr.append((len(cat_mask)/m) * self.calc_entropy(data[:, -1][cat_mask]))
 
         gain = entr_global - sum(sub_entr)
@@ -117,7 +125,8 @@ class DecisionTree:
         attrs_idx_states[-1] = 0
         #index corresponding to best gain
         bst_attr_idx = self.find_max_gain(data, attrs_idx_states)
-        self.root = Node(data, self.attributes[bst_attr_idx])
+
+        self.root = Node(data, self.attributes[bst_attr_idx], bst_attr_idx)
 
         data_attr_splits = self.split_data(data, bst_attr_idx)
         # avail_attrs_idxs = np.delete(avail_attrs_idxs, [bst_attr_idx], None)
@@ -126,7 +135,7 @@ class DecisionTree:
         for key in data_attr_splits.keys():
             data_split = data_attr_splits[key]
             branch = Branch(key)
-            self.root.connect_branch(branch)
+            self.root.connect_branch(branch, key)
             self.learn(data_split, branch, attrs_idx_states.copy())
 
     def learn(self, data, branch, attrs_idx_states):
@@ -140,15 +149,16 @@ class DecisionTree:
         bst_attr_idx = self.find_max_gain(data, attrs_idx_states)
         #set state used attr_idx as used
         attrs_idx_states[bst_attr_idx] = 0
-        child = Node(data, self.attributes[bst_attr_idx])
+        child = Node(data, self.attributes[bst_attr_idx], bst_attr_idx)
         branch.add_connection(child)
 
         data_attr_splits = self.split_data(data, bst_attr_idx)
         for key in data_attr_splits.keys():
             data_split = data_attr_splits[key]
-            branch = Branch(key)
-            child.connect_branch(branch)
-            self.learn(data_split, branch, attrs_idx_states.copy())
+            if len(data_split) > 0:
+                branch = Branch(key)
+                child.connect_branch(branch, key)
+                self.learn(data_split, branch, attrs_idx_states.copy())
 
     def show_tree(self):
         """ """
@@ -162,6 +172,19 @@ class DecisionTree:
         nx.draw_networkx_edge_labels(G, edge_labels=edge_labels, pos=pos)
 
         plt.show()
+
+    def predict(self, x, y):
+        print(x, y)
+        label = self.root.predict(x)
+        print("predicting", x, y, label)
+
+    def predict_set(self, data, labels):
+        n = len(data[:, 0])
+        predictions = np.zeros(n)
+        for i in range(n):
+            predictions[i] = self.predict(data[i, :], labels[i])
+        return (labels @ predictions)/n
+
 
 if __name__ == "__main__":
 
