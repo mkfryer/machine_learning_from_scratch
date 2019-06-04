@@ -69,6 +69,14 @@ class Node:
                 labels[(id_n, self.attribute)] = self.feature_labels[self.attribute_idx][branch.category_idx] + ":" + str(branch.popularity)
 
         return labels
+
+    def eliminate_children(self):
+        #todo - manage memory better...
+        self.branches = {}
+
+    def attatch_children(self, children):
+        self.branches = children
+
 class LeafNode(Node):
     def __init__(self, data, label):
         super().__init__(data, None, None, None)
@@ -78,19 +86,29 @@ class LeafNode(Node):
         return self.label
 
 class DecisionTree:
-    def __init__(self, data, attributes, feature_labels):
+    def __init__(self, train_data, test_data, validation_data, attributes, feature_labels):
         """
         """
-        self.data = data
-        self.m, self.n = data.shape
+        self.test_data = test_data
+        self.train_data = train_data
+        self.validation_data = validation_data
+        self.m, self.n = train_data.shape
         self.root = None
         self.attributes = attributes
         self.feature_labels = feature_labels
         self.nodes = []
 
     def prune(self):
-        trees = []
-
+        accuracies = []
+        n = len(self.nodes)
+        for i in range(i):
+            children_dict = self.nodes[i].branches
+            nodes[i].eliminate_children()
+            #get new accuracy
+            accuracies.append(self.predict_set(self.validation_data[:, :-1], self.validation_data[:, -1]))
+            nodes[i].attatch_children(children_dict)
+        print(accuracies)
+        raise Exception("not done")
     
     def calc_entropy(self, targ_col_data):
         uniq = np.unique(targ_col_data)
