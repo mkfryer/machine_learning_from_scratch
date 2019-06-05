@@ -41,12 +41,12 @@ class Node:
             return self.most_common_branch.c_node.predict(x)
 
     def get_class(self, s = ""):
-        s = s + " node:" + self.attribute
+        s = s + " node:" + str(self.attribute)
         for key in self.branches.keys():
             if type(self.branches[key].c_node) == Node:
-                self.branches[key].c_node.get_class(s + " branch:" + key)
+                self.branches[key].c_node.get_class(s + " branch:" + str(key))
             elif type(self.branches[key].c_node) == LeafNode:
-                print(s + " branch:" + key +  " label:" + self.branches[key].c_node.label)
+                print(s + " branch:" + str(key) +  " label:" + str(self.branches[key].c_node.label))
                 
         print("exausted branches")
 
@@ -76,10 +76,9 @@ class Node:
                 branch.c_node.add_edges(G, labels)
             elif type(branch.c_node) == LeafNode:
                 """ """
-                id_n = str(self.attribute[:2]) + "-" + str(branch.c_node.label)
+                id_n = str(self.attribute) + "-" + str(branch.c_node.label)
                 G.add_node(id_n)  
                 G.add_edge(id_n, self.attribute)
-
                 labels[(id_n, self.attribute)] = self.feature_labels[self.attribute_idx][branch.category_idx] + ":" + str(branch.popularity)
 
         return labels
@@ -237,7 +236,7 @@ class DecisionTree:
         self.root.add_edges(G, edge_labels)
         pos = nx.spring_layout(G, k=0.05, iterations=20)
 
-        plt.figure(3, figsize=(11,11)) 
+        plt.figure(3, figsize=(14,14)) 
         nx.draw(G, pos, with_labels=True, font_weight='bold')
         nx.draw_networkx_edge_labels(G, edge_labels=edge_labels, pos=pos)
 
