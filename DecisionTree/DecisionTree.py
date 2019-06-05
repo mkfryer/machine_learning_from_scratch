@@ -7,6 +7,7 @@ import networkx as nx
 import matplotlib.patches as mpatches
 import matplotlib.animation
 from matplotlib import pyplot as plt
+import math 
 
 class Branch:
 
@@ -34,13 +35,9 @@ class Node:
 
     def predict(self, x):
         category_idx = x[self.attribute_idx]
-        # print("category", self.attribute_idx)
-        # print(self.branches)
         if category_idx in self.branches.keys():
-            # print(self.branches.keys())
             return self.branches[category_idx].c_node.predict(x)
         else:
-            # print(self.branches.keys())
             return self.most_common_branch.c_node.predict(x)
 
     def get_class(self, s = ""):
@@ -53,12 +50,28 @@ class Node:
                 
         print("exausted branches")
 
+    def count_children(self):
+        count = len(self.branches.keys())
+        for key in self.branches.keys():
+            if type(self.branches[key].c_node) == Node:
+                count += self.branches[key].c_node.count_children()
+        return count
+
+    def get_depth(self):
+        depths = [0]
+        for key in self.branches.keys():
+            if type(self.branches[key].c_node) == Node:
+                depths.append(self.branches[key].c_node.get_depth())
+            elif type(self.branches[key].c_node) == LeafNode:
+                depths.append(1)
+        return 1 + max(depths)
+
     def add_edges(self, G, labels):
         for branch in self.branches.values():
             if type(branch.c_node) == Node:
                 G.add_node(branch.c_node.attribute)
                 G.add_edge(branch.c_node.attribute, self.attribute)
-                # print(self.feature_labels, self.attribute_idx, branch.category)
+
                 labels[(branch.c_node.attribute, self.attribute)] = self.feature_labels[self.attribute_idx][branch.category_idx] + ":" + str(branch.popularity)
                 branch.c_node.add_edges(G, labels)
             elif type(branch.c_node) == LeafNode:
@@ -66,9 +79,23 @@ class Node:
                 id_n = str(self.attribute[:2]) + "-" + str(branch.c_node.label)
                 G.add_node(id_n)  
                 G.add_edge(id_n, self.attribute)
+
                 labels[(id_n, self.attribute)] = self.feature_labels[self.attribute_idx][branch.category_idx] + ":" + str(branch.popularity)
 
         return labels
+
+    def prune(self, get_accuracy):
+        for branch in self.branches.values():
+            if type(branch.c_node) == Node:
+                branch.c_node.prune(get_accuracy)
+        
+        accuracy = get_accuracy()
+        unhatched_branches = self.branches
+        self.branches = {}
+        new_accuracy = get_accuracy()
+        if new_accuracy < accuracy:
+            self.branches = unhatched_branches
+    
 
     def eliminate_children(self):
         #todo - manage memory better...
@@ -96,51 +123,55 @@ class DecisionTree:
         self.root = None
         self.attributes = attributes
         self.feature_labels = feature_labels
-        self.nodes = []
 
     def prune(self):
-        accuracies = []
-        n = len(self.nodes)
-        for i in range(i):
-            children_dict = self.nodes[i].branches
-            nodes[i].eliminate_children()
-            #get new accuracy
-            accuracies.append(self.predict_set(self.validation_data[:, :-1], self.validation_data[:, -1]))
-            nodes[i].attatch_children(children_dict)
-        print(accuracies)
-        raise Exception("not done")
+        get_accuracy = lambda: self.predict_set(self.validation_data[:, :-1], self.validation_data[:, -1])
+        self.root.prune(get_accuracy)
+
+    def get_node_count(self):
+        return 1 + self.root.count_children()
+
+    def get_depth(self):
+        return self.root.get_depth()
     
     def calc_entropy(self, targ_col_data):
         uniq = np.unique(targ_col_data)
         n = len(targ_col_data)
-        p = []
-        for x in uniq:
-            m = np.where(targ_col_data == x)[0]
-            p.append(len(m)/n)
-        p = np.array(p)
+        m = len(uniq)
+        p = np.zeros(m).astype(float)
+        for i in range(m):
+            z = np.where(targ_col_data == uniq[i])[0]
+            p[i] = len(z)/n
         return -p @ np.log2(p)
-    
-    def calc_gain(self, data, attr_index):
+
+    def calc_gain(self, data, attr_index, split_info):
         """ """
         m, n = data.shape
         entr_global = self.calc_entropy(data[:, -1])
-        sub_entr = []
         categories = np.unique(data[:, attr_index])
+        sub_entr = np.zeros(len(categories)).astype(float)
+        split_info_val = 0.0
 
-        for cat in categories:
+        for i, cat in enumerate(categories):
             cat_mask = np.where(data[:, attr_index] == cat)[0]
-            sub_entr.append((len(cat_mask)/m) * self.calc_entropy(data[:, -1][cat_mask]))
+            c = len(cat_mask)/m
+            sub_entr[i] = c * self.calc_entropy(data[:, -1][cat_mask])
+            split_info_val -= c * math.log(c, 2)
 
-        gain = entr_global - sum(sub_entr)
+        gain = entr_global - np.sum(sub_entr)
+        if split_info:
+            gain /= split_info_val
+
         return gain
 
-    def find_max_gain(self, data, attrs_idx_states):
+    def find_max_gain(self, data, attrs_idx_states, split_info):
         n = len(attrs_idx_states)
-        gains = np.zeros(n)
+        gains = np.zeros(n).astype(float)
         active_attr_indxs, = np.where(attrs_idx_states == 1)
         for attr_idx in active_attr_indxs:
-            gains[attr_idx] = self.calc_gain(data, attr_idx)
+            gains[attr_idx] = self.calc_gain(data, attr_idx, split_info)
         max_gain_index = np.argmax(gains)
+
         return max_gain_index
 
     def split_data(self, data, i):
@@ -154,16 +185,16 @@ class DecisionTree:
             splits[attr] = data[idx_mask, :]
         return splits
         
-    def start_learn(self, data):
+    def start_learn(self, data, split_info = False):
         #attributes to split on. Can split if attr_indx = 1, 0 means you cant use it
         attrs_idx_states = np.ones(self.n)
         #dont split on category
         attrs_idx_states[-1] = 0
         #index corresponding to best gain
-        bst_attr_idx = self.find_max_gain(data, attrs_idx_states)
+        bst_attr_idx = self.find_max_gain(data, attrs_idx_states, split_info)
 
         self.root = Node(data, self.attributes[bst_attr_idx], bst_attr_idx, self.feature_labels)
-        # self.nodes.append(self.root)
+
         data_attr_splits = self.split_data(data, bst_attr_idx)
         # avail_attrs_idxs = np.delete(avail_attrs_idxs, [bst_attr_idx], None)
         #set state used attr_idx as used
@@ -172,22 +203,21 @@ class DecisionTree:
             data_split = data_attr_splits[key]
             branch = Branch(key, len(data_split[:, 0]))
             self.root.connect_branch(branch, key)
-            self.learn(data_split, branch, attrs_idx_states.copy())
+            self.learn(data_split, branch, attrs_idx_states.copy(), split_info)
+        
 
-    def learn(self, data, branch, attrs_idx_states):
+    def learn(self, data, branch, attrs_idx_states, split_info):
         #base case - stop learning when data is pure
         if len(np.unique(data[:, -1])) == 1:
             #create leaf node and get label
             child = LeafNode(data, data[0, -1])
             branch.add_connection(child)
             return
-            
 
-        bst_attr_idx = self.find_max_gain(data, attrs_idx_states)
+        bst_attr_idx = self.find_max_gain(data, attrs_idx_states, split_info)
         #set state used attr_idx as used
         attrs_idx_states[bst_attr_idx] = 0
         child = Node(data, self.attributes[bst_attr_idx], bst_attr_idx, self.feature_labels)
-        self.nodes.append(child)
         branch.add_connection(child)
 
         data_attr_splits = self.split_data(data, bst_attr_idx)
@@ -196,7 +226,7 @@ class DecisionTree:
             if len(data_split[:, 0]) > 0:
                 branch = Branch(key, len(data_split[:, 0]))
                 child.connect_branch(branch, key)
-                self.learn(data_split, branch, attrs_idx_states.copy())
+                self.learn(data_split, branch, attrs_idx_states.copy(), split_info)
 
 
     def show_tree(self):
@@ -238,9 +268,13 @@ if __name__ == "__main__":
         ]).T
     
     attributes = ["outlook", "temperature", "humidity" ,"wind", "playtennis", "no", "yes"]
-    T = DecisionTree(f, attributes)
-    T.start_learn(f)
-    T.show_tree()
+    f_labels = ["yes", "no"]
+    # T = DecisionTree(f, None, None, attributes, f_labels)
+    # T.start_learn(f, True)
+    # print("node count", T.get_node_count())
+    # print("depth", T.get_depth())
+    # T.root.get_class()
+    # T.show_tree()
 
     # f = np.chararray([a, b, c, d, e])
 
