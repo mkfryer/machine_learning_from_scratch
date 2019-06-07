@@ -64,7 +64,6 @@ class NeuralNetwork:
         mse /= m
         return acc, mse
 
-
     def train_set(self, train_set, test_set, validation_set, w = 5):
         m1, n1 = train_set.get_features().data.shape
         min_mse = np.inf
