@@ -1,7 +1,8 @@
 """
 """
 import numpy as np
-
+from mpl_toolkits.mplot3d import Axes3D
+import matplotlib.pyplot as plt
 
 class KNNClassifier:
 
@@ -14,6 +15,28 @@ class KNNClassifier:
         self.tr_m, self.tr_n = training_data.shape
         self.te_m, self.te_n = testing_data.shape
         # self.get_weighted_d = lambda x, y: 1/np.linalg.norm(x - y)**2
+
+    def induce_KSM(self):
+        #apply confidence level for all classifications
+        #remove instances from training set where otherwise un-needed
+        i = 0
+        while i < self.tr_m:
+            #get iterated x
+            x = self.training_data[i, :]
+            #remove x
+            tmp_training_data = np.delete(self.training_data, i, 0)
+            #get k nearest neigbors
+            M = tmp_training_data[:, :-1] - x[:-1]
+            D = np.linalg.norm(M, axis=1)
+            nn_idx = np.argpartition(D, 3)[:self.k + 1]
+            vals = tmp_training_data[nn_idx, -1]
+            #check if all labels of k neigbors are the same
+            if np.sum(vals - vals[0]) == 0:
+               self.tr_m, self.tr_n = tmp_training_data.shape
+               self.training_data = tmp_training_data
+
+            i += 1
+
 
     def regress_predict(self, x, weighted_d):
         M = self.training_data[:, :-1] - x
@@ -57,6 +80,33 @@ class KNNClassifier:
                 index_scores.append(np.sum(W[i_mask]))
             b_class_i = np.argmax(np.array(index_scores))
             return uniq_classes[b_class_i]
+
+    def get_accuracy_mixed(self, cat_mask, cont_mask, dist_matrix):
+        correct = 0
+        for x in self.testing_data:
+            if np.allclose(self.predict(x[:-1], False), x[-1]):
+                correct += 1
+        return correct/self.te_m
+
+    def predict_mixed(self, x, cat_mask, cont_mask, dist_matrix):
+        D = np.zeros(self.tr_m)
+        for i in range(self.tr_m):
+            d_v = np.zeros(self.tr_n)
+            y = self.training_data[y, :]
+            for j in range(self.tr_n):
+                if j in cat_mask:
+                    d_v[j] = dist_matrix[y[j], x[j]]
+                else:
+                    d_v[j] = y[j] - x[j]
+
+            D[i] = np.linalg.norm(d_v)
+
+        #sort data and get indicies
+        nn_idx = np.argpartition(D, 3)[:self.k]
+        #get corresponding labels
+        nn_labels = self.training_data[nn_idx, -1].astype(int)
+        #get most common label
+        return np.bincount(nn_labels).argmax()
         
 
     def get_accuracy(self, weighted_d = False):
