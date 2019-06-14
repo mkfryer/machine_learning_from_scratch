@@ -11,6 +11,7 @@ class KMC:
         self.attr_types = attr_types
         self.m, self.n = train_data.shape
         self.centroids = train_data[:k, :-1].copy()
+        # print("initial centroids \n", self.centroids, "\n \n \n")
 
     def get_sqrd_dist(self, x, y):
         sqrd_dist = 0
@@ -60,32 +61,21 @@ class KMC:
             err += self.get_sqrd_dist([y], [y_hat])
         return err
 
-    def report(self):
-        print("Total Clusters:", self.k, "\n")
+    def report(self, cluster_errs):
+        print("Total Clusters:", self.k, "\n \n")
         err = 0
         for i in range(self.k):
             centroid = self.centroids[i]
             cluster = self.clusters[i]
             n = len(cluster)
-            c_err = 0
-            for j in range(n):
-                c_err += self.get_sqrd_dist(cluster[j], centroid)
-            err += c_err
             print("Cluster:", i)
             print("Centroid:", "\n", centroid)
             print("Instances in centroid:", n)
-            print("Centroid SSE:", c_err)
-        print("Total SSE:", err, "\n \n \n")
-            
-    def train(self, tol = .0001):
-        last_err, cur_err = (np.inf, 0)
-        clusters_err = []
+            print("Centroid SSE:", cluster_errs[i])
+        print("\nTotal SSE:", sum(cluster_errs), "\n")
 
-        while (cur_err - last_err)**2 > tol:
-            last_err = cur_err
-            cur_err = 0
-
-            #populate clusters
+    def populate_clusters(self):
+            cluster_errs = np.zeros(self.k)
             self.clusters = [[] for x in range(self.k)]
             for i in range(self.m):
                 x = self.train_data[i, :-1].copy()
@@ -93,14 +83,24 @@ class KMC:
                 for j in range(self.k):
                     distances[j] = self.get_sqrd_dist(x, self.centroids[j])
                 l = np.argmin(distances)
-                cur_err += distances[l]
                 self.clusters[l].append(x)
+                cluster_errs[l] = cluster_errs[l] +  distances[l]
+            return cluster_errs
+
+    def train(self, tol = .0001):
+        last_err, cur_err = (np.inf, 0)
+
+        while (cur_err - last_err)**2 > tol:
+            last_err = cur_err
+            cluster_errs = self.populate_clusters()
+            cur_err = sum(cluster_errs)
+            self.report(cluster_errs)
 
             #calculate new centroids
             for i in range(self.k):
                 self.centroids[i] = self.calculate_centroid(self.clusters[i])
 
-            self.report()
+
 
 
 def test_1():
@@ -166,7 +166,19 @@ def test_cases():
     data = np.hstack((features, labels))[:, 1:]
     kmc = KMC(k, data, data, attr_types)
     kmc.train(tol=0)
+    print(kmc.get_err())
+    # print("second centroid \n", kmc.centroids[:, -1])
 
+    # x = np.array([4, 30 , 30, 4])
+    # print(x)
+    # print(np.bincount(x).argmax())
+
+    # print(kmc.get_sqrd_dist(data[3, :], data[8, :]))
+    # print(kmc.get_sqrd_dist(data[1, :], data[8, :]))
+
+    # show_table(
+    #     [data[3, :], data[8, :], data[1, :]]
+    # )
 
 test_cases()
 
