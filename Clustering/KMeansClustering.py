@@ -10,7 +10,7 @@ class KMC:
         self.test_data = test_data
         self.attr_types = attr_types
         self.m, self.n = train_data.shape
-        self.centroids = train_data[:k, :].copy()
+        self.centroids = train_data[:k, :-1].copy()
         print("initial centroids \n", self.centroids, "\n")
 
     def get_sqrd_dist(self, x, y):
@@ -35,7 +35,7 @@ class KMC:
         return sqrd_dist
 
     def calculate_centroid(self, cluster):
-        centroid = np.zeros(self.n)
+        centroid = np.zeros(self.n -1)
         cluster = np.array(cluster)
         m, n = cluster.shape
         for i in range(n):
@@ -51,8 +51,10 @@ class KMC:
                     centroid[i] = np.nan
             else:
                 x = cluster[:, i]
+                # print("x", x)
                 x = x[~np.isnan(x)].astype(int)
                 if len(x) > 0:
+                    # print("argmax", np.bincount(x).argmax())
                     centroid[i] = np.bincount(x).argmax()
                 else:
                     centroid[i] = np.nan
@@ -66,7 +68,7 @@ class KMC:
         #populate clusters and calculate new centroids
         clusters = [[] for x in range(self.k)]
         for i in range(self.m):
-            x = self.train_data[i, :].copy()
+            x = self.train_data[i, :-1].copy()
             distances = np.zeros(self.k)
             # print("vector:", x)
             for j in range(self.k):
@@ -80,6 +82,7 @@ class KMC:
         
         # print("clusters: \n", clusters, "\n")
         for i in range(self.k):
+            print("c", i, "\n")
             self.centroids[i] = self.calculate_centroid(clusters[i])
         
         # print("centroids:", self.centroids)
@@ -167,9 +170,13 @@ def test_cases():
     data = np.hstack((features, labels))[:, 1:]
     kmc = KMC(k, data, data, attr_types)
     kmc.train(kmc.get_sqrd_dist)
-    print("first centroid \n", kmc.centroids)
+    # print("first centroid \n", kmc.centroids[:, -1])
     kmc.train(kmc.get_sqrd_dist)
-    print("second centroid \n", kmc.centroids)
+    # print("second centroid \n", kmc.centroids[:, -1])
+
+    # x = np.array([4, 30 , 30, 4])
+    # print(x)
+    # print(np.bincount(x).argmax())
 
     # print(kmc.get_sqrd_dist(data[3, :], data[8, :]))
     # print(kmc.get_sqrd_dist(data[1, :], data[8, :]))
