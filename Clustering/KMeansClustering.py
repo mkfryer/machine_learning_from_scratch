@@ -2,16 +2,20 @@ import numpy as np
 from toolkit.arff import Arff
 from scipy.spatial.distance import cdist
 from matplotlib import pyplot as plt
+
+
+
 class KMC:
 
-    def __init__(self, k, train_data, test_data, attr_types):
+    def __init__(self, k, train_data, test_data, attr_types, attr_idx = None):
         self.k = k
         self.train_data = train_data
         self.test_data = test_data
         self.attr_types = attr_types
         self.m, self.n = train_data.shape
+        self.attr_idx = attr_idx
         self.centroids = train_data[:k, :-1].copy()
-        # print("initial centroids \n", self.centroids, "\n \n \n")
+        
 
     def get_sqrd_dist(self, x, y):
         sqrd_dist = 0
@@ -61,18 +65,24 @@ class KMC:
             err += self.get_sqrd_dist([y], [y_hat])
         return err
 
-    def report(self, cluster_errs):
-        print("Total Clusters:", self.k, "\n \n")
+    def report(self, cluster_errs, iteration):
+        print("******************************")
+        print("Iteration", iteration)
+        print("******************************")
         err = 0
         for i in range(self.k):
-            centroid = self.centroids[i]
+            centroid = list(np.round(self.centroids[i], decimals = 3))
+            for j in range(len(centroid)):
+                if np.isnan(centroid[j]):
+                    centroid[j] = "?"
+                elif self.attr_idx and self.attr_types[j] != 'real':
+                    centroid[j] = self.attr_idx[j][int(centroid[j])]
             cluster = self.clusters[i]
             n = len(cluster)
-            print("Cluster:", i)
-            print("Centroid:", "\n", centroid)
-            print("Instances in centroid:", n)
-            print("Centroid SSE:", cluster_errs[i])
-        print("\nTotal SSE:", sum(cluster_errs), "\n")
+            print("Cluster:", i, "Size:", n, "SSE:", cluster_errs[i])
+            print("Centroid:", i, "=" , centroid)
+        print("\nTotal Clusters:", self.k , "\nTotal SSE:", np.round(sum(cluster_errs), decimals = 3), "\n \n")
+
 
     def populate_clusters(self):
             cluster_errs = np.zeros(self.k)
@@ -87,21 +97,63 @@ class KMC:
                 cluster_errs[l] = cluster_errs[l] +  distances[l]
             return cluster_errs
 
-    def train(self, tol = .0001):
+    def train(self, report = True, tol = .0001):
         last_err, cur_err = (np.inf, 0)
-
+        iteration = 0
         while (cur_err - last_err)**2 > tol:
+            iteration += 1
             last_err = cur_err
             cluster_errs = self.populate_clusters()
             cur_err = sum(cluster_errs)
-            self.report(cluster_errs)
+
+            if report:
+                self.report(cluster_errs, iteration)
 
             #calculate new centroids
             for i in range(self.k):
                 self.centroids[i] = self.calculate_centroid(self.clusters[i])
+        
+        if report:
+            print("SSE has converged")
+        return cur_err
 
+    def get_silhouette(self, x, idx):
+        def f(x, i):
+            count = 0
+            dist = 0
+            for y in self.clusters[i]:
+                if np.allclose(x, y):
+                    continue
+                dist += cdist([x], [y], 'cityblock')[0][0]#self.get_sqrd_dist(x, y)
+                count += 1
+            return dist/count
+        
+        D = np.zeros(self.k)
+        for i in range(self.k):
+            if i == idx:
+                D[i] = np.inf
+            else:
+                D[i] = f(x, i)
+        b = min(D)
+        a = f(x, idx)
+        # print(x, "a", a, "b", b)
 
+        # print("s", (b - a)/max(a, b))
+        return (b - a)/max(a, b)
 
+    def get_global_silhouette(self):
+
+        # self.clusters = [
+        #     np.array([[.8, .7], [.9, .8]]),
+        #     np.array([[.6, .6], [0, .2], [.2, .1]])
+        # ]
+        # self.k = 2
+        global_s = []
+        for i in range(self.k):
+            for j in range(len(self.clusters[i])):
+                global_s.append(self.get_silhouette(self.clusters[i][j], i))
+        # print("total", sum(global_s)/len(global_s))
+        return sum(global_s)/len(global_s)
 
 def test_1():
     data = np.array([
@@ -158,29 +210,38 @@ def test_cases():
         "cat",
         "cat"
     ]
+
+    attr_idx = [
+            [],
+            [],
+            [],
+            [],
+            ['none','tcf','tc'],
+            [],
+            ['none','ret_allw','empl_contr'],
+            [],
+            [],
+            ['yes','no'],
+            [],
+            ['below_average','average','generous'],
+            ['yes','no'],
+            ['none','half','full'],
+            ['yes','no'],
+            ['none','half','full'],
+            ['bad','good']
+        ]
+
     k = 5
     arff = Arff("labor.arff")
+    # arff.normalize()
     features = arff.get_features().data
     labels = arff.get_labels().data
     # attributes = arff.get_attr_names()
     data = np.hstack((features, labels))[:, 1:]
-    kmc = KMC(k, data, data, attr_types)
+    kmc = KMC(k, data, data, attr_types, attr_idx)
     kmc.train(tol=0)
-    print(kmc.get_err())
-    # print("second centroid \n", kmc.centroids[:, -1])
 
-    # x = np.array([4, 30 , 30, 4])
-    # print(x)
-    # print(np.bincount(x).argmax())
-
-    # print(kmc.get_sqrd_dist(data[3, :], data[8, :]))
-    # print(kmc.get_sqrd_dist(data[1, :], data[8, :]))
-
-    # show_table(
-    #     [data[3, :], data[8, :], data[1, :]]
-    # )
-
-test_cases()
+# test_cases()
 
 
 
