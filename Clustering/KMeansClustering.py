@@ -9,13 +9,35 @@ class KMC:
 
     def __init__(self, k, train_data, test_data, attr_types, attr_idx = None):
         self.k = k
-        self.train_data = train_data
+        self.train_data = train_data[:, :]
         self.test_data = test_data
         self.attr_types = attr_types
         self.m, self.n = train_data.shape
         self.attr_idx = attr_idx
-        self.centroids = train_data[:k, :-1].copy()
+        self.centroids = train_data[:k, :].copy()
         
+    def inhance_centroids(self):
+        def P(i):
+            p = 0
+            for j in range(self.m):
+                if self.get_sqrd_dist(self.train_data[i, :], self.train_data[j, :]) < 1.3:
+                    p += 1
+            return p
+        densities = np.zeros(self.m)
+        for i in range(self.m):
+            densities[i] = P(i)
+        idx_mask = []
+
+        for idx in np.argsort(densities)[::-1]:
+            if len(idx_mask) == 0:
+                idx_mask.append(idx)
+            for idx2 in idx_mask:
+                if self.get_sqrd_dist(self.train_data[idx2, :], self.train_data[idx, :]) < 1:
+                    continue 
+            idx_mask.append(idx)
+
+        self.centroids = self.train_data[idx_mask, :]
+        print(self.train_data[idx_mask, :])
 
     def get_sqrd_dist(self, x, y):
         sqrd_dist = 0
@@ -30,7 +52,7 @@ class KMC:
         return sqrd_dist
 
     def calculate_centroid(self, cluster):
-        centroid = np.zeros(self.n -1)
+        centroid = np.zeros(self.n)
         cluster = np.array(cluster)
         m, n = cluster.shape
         for i in range(n):
@@ -56,14 +78,14 @@ class KMC:
             distances[j] = self.get_sqrd_dist(x, self.centroids[j])
         return np.argmin(distances)
 
-    def get_accuracy(self):
-        m, n = self.test_data.shape
-        err = 0
-        for i in range(m):
-            y = self.predict(self.test_data[i, :-1])
-            y_hat = self.test_data[i, -1]
-            err += self.get_sqrd_dist([y], [y_hat])
-        return err
+    # def get_accuracy(self):
+    #     m, n = self.test_data.shape
+    #     err = 0
+    #     for i in range(m):
+    #         y = self.predict(self.test_data[i, :-1])
+    #         y_hat = self.test_data[i, -1]
+    #         err += self.get_sqrd_dist([y], [y_hat])
+    #     return err
 
     def report(self, cluster_errs, iteration):
         print("******************************")
@@ -233,7 +255,7 @@ def test_cases():
 
     k = 5
     arff = Arff("labor.arff")
-    # arff.normalize()
+    arff.normalize()
     features = arff.get_features().data
     labels = arff.get_labels().data
     # attributes = arff.get_attr_names()

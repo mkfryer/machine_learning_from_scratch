@@ -9,13 +9,35 @@ class HA_Clustering:
         """
         """
         self.k = k
-        self.train_data = train_data
+        self.train_data = train_data[:, :]
         self.test_data = test_data
         self.attr_types = attr_types
         self.m, self.n = train_data.shape
         self.attr_idx = attr_idx
-        self.clusters = [[train_data[i, :]] for i in range(self.m)] 
+        self.clusters = [[self.train_data[i, :]] for i in range(self.m)] 
         self.clusterize(a_type)
+        self.centroids = []
+
+    def calculate_centroid(self, cluster):
+        centroid = np.zeros(self.n)
+        cluster = np.array(cluster)
+        m, n = cluster.shape
+        for i in range(n):
+            if self.attr_types[i] == "real":
+                x = cluster[:, i]
+                x = x[~np.isnan(x)]
+                if len(x) > 0:
+                    centroid[i] = np.mean(x)
+                else:
+                    centroid[i] = np.nan
+            else:
+                x = cluster[:, i]
+                x = x[~np.isnan(x)].astype(int)
+                if len(x) > 0:
+                    centroid[i] = np.bincount(x).argmax()
+                else:
+                    centroid[i] = np.nan
+        return centroid
 
     def get_dist(self, x, y):
         sqrd_dist = 0
@@ -36,7 +58,7 @@ class HA_Clustering:
         #compare all clusters
         for i in range(m):
             for j in range(m):
-                if i == j: continue
+                if c_dist[i, j] != 0: continue
                 m_v = len(self.clusters[i])
                 n_v = len(self.clusters[j])
                 v_dist = np.zeros((m_v, n_v))
@@ -47,23 +69,94 @@ class HA_Clustering:
                     c_dist[i, j] = np.min(v_dist)
                 elif a_type == "complete link":
                     c_dist[i, j] = np.max(v_dist)
-        print(c_dist)
+                c_dist[j, i] = c_dist[i, j]
+        # print(c_dist[28, 32], c_dist[32, 28])
         i, j = np.unravel_index(np.argmin(c_dist, axis=None), c_dist.shape)
-        print(c_dist[i, j])
-        return i, j
+        smallest_dist = c_dist[i, j]
+        #create tie preference
+        mask = np.where(c_dist == smallest_dist)
+        print("Merging Clusters", i, "and", j, "Distance:", c_dist[i, j])
+        return (i, j)
 
     
     def combine_clusters(self, i , j):
-        print("Mergin Clusters", i, "and", j)
-        print(self.clusters[i], self.clusters[j])
+        self.clusters[i] = self.clusters[i] + self.clusters[j]
+        del self.clusters[j]
 
     def clusterize(self, a_type):
+        iterations = -1
         while len(self.clusters) > self.k:
-            next_cluster_idxs = self.get_closest_clusters(a_type)
-            print(next_cluster_idxs)
-            self.combine_clusters(next_cluster_idxs)
-            self.k -= 1
-            return
+            iterations += 1
+            print("************")
+            print("Iteration", iterations)
+            print("************")
+            i, j = self.get_closest_clusters(a_type)
+            self.combine_clusters(i, j)
+            m = len(self.clusters)
+            for i in range(m):
+                c = self.clusters[i]
+                n = len(c)
+                print("cluster", i, "size:", n)
+        
+        for i in range(self.k):
+            centroid = self.calculate_centroid(self.clusters[i])
+            centroid = list(np.round(centroid, decimals = 3))
+            for j in range(len(centroid)):
+                if np.isnan(centroid[j]):
+                    centroid[j] = "?"
+                elif self.attr_idx and self.attr_types[j] != 'real':
+                    centroid[j] = self.attr_idx[j][int(centroid[j])]
+            print("Centroid", i, centroid)
+
+    def get_SSE(self):
+        SSE = 0
+        for i in range(self.k):
+            cluster = self.clusters[i]
+            for x in cluster:
+                SSE += self.get_dist(x, self.calculate_centroid(self.clusters[i]))
+
+        return SSE
+
+    def get_silhouette(self, x, idx):
+        def f(x, i):
+            count = 0
+            dist = 0
+            for y in self.clusters[i]:
+                if sum(x - y) == 0:
+                    continue
+                dist += cdist([x], [y], 'cityblock')[0][0]##self.get_dist(x, y)
+                count += 1
+            if count == 0:
+                return 0
+            return dist/count
+        
+        D = np.zeros(self.k)
+        for i in range(self.k):
+            if i == idx:
+                D[i] = np.inf
+            else:
+                D[i] = f(x, i)
+        b = min(D)
+        a = f(x, idx)
+        # print(x, "a", a, "b", b)
+
+        # print("s", (b - a)/max(a, b))
+        return (b - a)/max(a, b)
+
+    def get_global_silhouette(self):
+
+        # self.clusters = [
+        #     np.array([[.8, .7], [.9, .8]]),
+        #     np.array([[.6, .6], [0, .2], [.2, .1]])
+        # ]
+        # self.k = 2
+        global_s = []
+        for i in range(self.k):
+            for j in range(len(self.clusters[i])):
+                global_s.append(self.get_silhouette(self.clusters[i][j], i))
+        # print("total", sum(global_s)/len(global_s))
+        return sum(global_s)/len(global_s)
+
 
 
     
@@ -116,7 +209,7 @@ def test_cases():
     features = arff.get_features().data
     labels = arff.get_labels().data
     # attributes = arff.get_attr_names()
-    data = np.hstack((features, labels))[:, 1:]
-    kmc = HA_Clustering(k, data, data, attr_types, "single link", attr_idx)
+    data = np.hstack((features, labels))[:, 1:-1]
+    kmc = HA_Clustering(k, data, data, attr_types, "complete link", attr_idx)
 
 test_cases()
